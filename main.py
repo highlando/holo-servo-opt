@@ -10,6 +10,13 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
 
     By now, we simply use backward Euler
 
+    Parameter
+    ---------
+    fpri : f(t), function
+        the value of the rhs in the primal eqns at time `t`
+    fdua : f(t), function
+        the value of the rhs in the dual eqns at time `t`
+
     Returns
     -------
     fbdict : dict
@@ -17,6 +24,12 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
     ftdict : dict
         with time `t` as key and the feedthrough `w(t)` as value
     """
+
+    t = tmesh[-1]
+    fbdict = {t: termx}
+    ftdict = {t: termw}
+
+    return fbdict, ftdict
 
 
 def get_tint(t0, tE, Nts, sqzmesh=True, plotmesh=False):
@@ -44,6 +57,7 @@ def get_tint(t0, tE, Nts, sqzmesh=True, plotmesh=False):
         plt.show()
 
     return tint
+
 
 def comp_firstorder_mats(A=None, B=None, C=None, f=None,
                          posini=None, velini=None):
