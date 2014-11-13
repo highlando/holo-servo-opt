@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.linalg as spla
 
 
 def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
@@ -26,10 +27,53 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
     """
 
     t = tmesh[-1]
-    fbdict = {t: termx}
+    fbdict = {t: np.dot(bt, termx)}
     ftdict = {t: termw}
 
+    Xc = termx
+    wc = termw
+
+    M = np.eye(A.shape[0])
+
+    for tk, t in reversed(list(enumerate(tmesh[:-1]))):
+        cts = tmesh[tk+1] - t
+        print 'Time is {0}, timestep is {1}'.format(t, cts)
+
+        # integrating the Riccati Equation
+        fmat = -0.5*M + cts*A
+        W = -Xc + cts*ctc
+        Xp = solve_algric(A=fmat, W=W, R=cts*bbt, X0=Xc)
+        fbdict.update({t: np.dot(bt, Xp)})
+
+        # timestepping for the feedthrough variable
+        prhs = wc + cts*np.dot(Xp, fpri(t)) + cts*fdua(t)
+        wp = np.linalg.solve(M - cts*(A.T + cts*np.dot(Xp, bbt)), prhs)
+        ftdict.update({t: wp})
+
     return fbdict, ftdict
+
+
+def solve_algric(A=None, R=None, W=None, X0=None,
+                 nwtnstps=10, nwtntol=1e-12,
+                 verbose=True):
+    """ solve algebraic Riccati Equation via Newton iteration
+
+    for dense matrices.
+
+    The considered Ric Eqn is `A.TX + XA + XRX = W`
+    """
+    XN = X0
+    nwtns, nwtnres = 0, 999
+    while nwtns < nwtnstps and nwtnres > nwtntol:
+        nwtns += 1
+        fmat = A + np.dot(R, XN)
+        cw = W + np.dot(XN, np.dot(R, XN))
+        XNN = spla.solve_lyapunov(fmat.T, cw)
+        nwtnres = np.linalg.norm(XN - XNN)
+        XN = XNN
+        if verbose:
+            print 'Newton step {0}: norm of update {1}'.format(nwtns, nwtnres)
+    return XN
 
 
 def get_tint(t0, tE, Nts, sqzmesh=True, plotmesh=False):
@@ -39,7 +83,7 @@ def get_tint(t0, tE, Nts, sqzmesh=True, plotmesh=False):
     is advisable since
 
      1. the backward in time Riccati problem needs a high resolution towards \
-    terminal value
+    the terminal value
      2. the closed loop problem has large gradients at the beginning
 
     this function uses the sin function to squeeze a mesh towards the \
@@ -182,3 +226,19 @@ if __name__ == '__main__':
     tA, tB, tC, tf, tini = comp_firstorder_mats(A=A, B=B, C=C, f=f,
                                                 **defprbdict)
     tmesh = get_tint(0.0, tE, Nts, plotmesh=False)
+
+    beta, gamma = defctrldict['beta'], defctrldict['gamma']
+    bbt = 1./beta*np.dot(tB, tB.T)
+    ctc = np.dot(tC.T, tC)
+
+    def fpri(t):
+        return tf
+
+    def fdua(t):
+        return np.dot(tC.T, trajec(t))
+
+    termw = gamma*fdua(tmesh[-1])
+    termx = -gamma*ctc
+
+    fbdict, ftdict = solve_fbft(A=tA, bbt=bbt, ctc=ctc, fpri=fpri, fdua=fdua,
+                                tmesh=tmesh, termx=termx, termw=termw, bt=tB.T)

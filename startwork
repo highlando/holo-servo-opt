@@ -1,0 +1,6 @@
+#!/bin/bash
+
+git pull
+FILETOEDIT=main.py
+echo $FILETOEDIT
+gvim --remote-silent $FILETOEDIT 
