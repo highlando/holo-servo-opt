@@ -160,11 +160,11 @@ def get_abcf(kvec=None, mvec=None, dvec=None, N=None, printmats=False):
     return A, B, C, f
 
 if __name__ == '__main__':
-    defsysdict = dict(mvec=np.array([1., 2.]),
+    defsysdict = dict(mvec=np.array([2., 1.]),
                       dvec=np.array([0.5]),
                       kvec=np.array([10.]),
                       printmats=True)
-    defprbdict = dict(posini=np.array([[0.], [0.5]]),
+    defprbdict = dict(posini=np.array([[0.5], [0]]),
                       velini=np.array([[0.], [0.]]))
     tE = 6.
     Nts = 39
