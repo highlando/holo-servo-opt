@@ -172,28 +172,27 @@ def get_abcf(kvec=None, mvec=None, dvec=None, N=None, printmats=False):
     B = np.zeros((N, 1))
     C = np.zeros((1, N))
 
-    difftonext = -np.array([[1, -1]])
-    difftoprev = np.array([[1, -1]])
+    difftonext = np.array([[1, -1]])
 
     # eqn for first mass body m1
     k = 0
-    A[k, k:k+2] = kvec[k]/mvec[k]*difftonext
+    A[k, k:k+2] = -kvec[k]/mvec[k]*difftonext
     C[0, k] = 1
     f[k] = kvec[k]/mvec[k]*dvec[k]
 
     # eqns for the inner mass bodies
     for k in range(1, N-1):
         # consider the next body
-        A[k, k:k+2] = kvec[k]/mvec[k]*difftonext
+        A[k, k:k+2] = -kvec[k]/mvec[k]*difftonext
         f[k] += kvec[k]/mvec[k]*dvec[k]
         # consider the previous body
-        A[k, k-1: k+1] = A[k, k-1: k+1] + kvec[k-1]/mvec[k]*difftoprev
-        f[k] += kvec[k-1]/mvec[k]*dvec[k-1]
+        A[k, k-1: k+1] = A[k, k-1: k+1] + kvec[k-1]/mvec[k]*difftonext
+        f[k] += -kvec[k-1]/mvec[k]*dvec[k-1]
 
     # eqn for last mass body
     k = N-1
-    A[k, k-1: k+1] = kvec[k-1]/mvec[k]*difftoprev
-    f[k] = kvec[k-1]/mvec[k]*dvec[k-1]
+    A[k, k-1: k+1] = kvec[k-1]/mvec[k]*difftonext
+    f[k] = -kvec[k-1]/mvec[k]*dvec[k-1]
     B[k, 0] = 1
     if printmats:
         print '\nA=\n', A
@@ -240,5 +239,5 @@ if __name__ == '__main__':
     termw = gamma*fdua(tmesh[-1])
     termx = -gamma*ctc
 
-    fbdict, ftdict = solve_fbft(A=tA, bbt=bbt, ctc=ctc, fpri=fpri, fdua=fdua,
-                                tmesh=tmesh, termx=termx, termw=termw, bt=tB.T)
+    # fbdict, ftdict = solve_fbft(A=tA, bbt=bbt, ctc=ctc, fpri=fpri, fdua=fdua,
+    #                             tmesh=tmesh, termx=termx, termw=termw, bt=tB.T)
