@@ -12,9 +12,9 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
 
     Parameter
     ---------
-    fpri : f(t), function
+    fpri : f(t), callable
         the value of the rhs in the primal eqns at time `t`
-    fdua : f(t), function
+    fdua : f(t), callable
         the value of the rhs in the dual eqns at time `t`
 
     Returns
