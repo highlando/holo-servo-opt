@@ -1,9 +1,53 @@
 import numpy as np
 import scipy.linalg as spla
+import matplotlib.pyplot as plt
+
+
+def solve_cl_sys(A=None, B=None, C=None, bmo=None, f=None,
+                 tmesh=None, fbd=None, ftd=None, zini=None):
+    """solve the (closed loop) forward problem
+
+    """
+    t, zc = tmesh[0], zini
+    M = np.eye(A.shape[0])
+    outdict = {t: np.dot(C, zc)}
+    for tk, t in enumerate(tmesh[1:]):
+        cts = t - tmesh[tk]
+        crhs = zc + cts*(f + np.dot(B, bmo*ftd[t]))
+        cmat = M - cts*(A + np.dot(B, bmo*fbd[t]))
+        zc = np.linalg.solve(cmat, crhs)
+        outdict.update({t: np.dot(C, zc)})
+    return outdict
+
+
+def plot_output(tmesh, outdict, targetsig=None):
+    outsigl = []
+    trgsigl = []
+    for t in tmesh:
+        outsigl.append(outdict[t][0][0])
+        trgsigl.append(targetsig(t))
+
+    plt.plot(tmesh, outsigl)
+    plt.plot(tmesh, trgsigl)
+    plt.show()
+
+
+def plot_fbft(tmesh, fbdict, ftdict):
+    normfbl = []
+    ftl = []
+    for t in tmesh:
+        normfbl.append(np.linalg.norm(fbdict[t]))
+        ftl.append(ftdict[t][0])
+
+    plt.figure(11)
+    plt.plot(tmesh, normfbl)
+    plt.figure(22)
+    plt.plot(tmesh, ftl)
+    plt.show()
 
 
 def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
-               tmesh=None, termx=None, termw=None, bt=None):
+               tmesh=None, termx=None, termw=None, bt=None, verbose=False):
     """solve for feedback gain and feedthrough
 
     by solving a differential Riccati equation and a backward problem \
@@ -23,12 +67,12 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
     fbdict : dict
         with time `t` as key and `B.T*X(t)` as value
     ftdict : dict
-        with time `t` as key and the feedthrough `w(t)` as value
+        with time `t` as key and the feedthrough `B.T*w(t)` as value
     """
 
     t = tmesh[-1]
     fbdict = {t: np.dot(bt, termx)}
-    ftdict = {t: termw}
+    ftdict = {t: np.dot(bt, termw)}
 
     Xc = termx
     wc = termw
@@ -37,7 +81,8 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
 
     for tk, t in reversed(list(enumerate(tmesh[:-1]))):
         cts = tmesh[tk+1] - t
-        print 'Time is {0}, timestep is {1}'.format(t, cts)
+        if verbose:
+            print 'Time is {0}, timestep is {1}'.format(t, cts)
 
         # integrating the Riccati Equation
         fmat = -0.5*M + cts*A
@@ -48,14 +93,14 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
         # timestepping for the feedthrough variable
         prhs = wc + cts*np.dot(Xp, fpri(t)) + cts*fdua(t)
         wp = np.linalg.solve(M - cts*(A.T + cts*np.dot(Xp, bbt)), prhs)
-        ftdict.update({t: wp})
+        ftdict.update({t: np.dot(bt, wp)})
 
     return fbdict, ftdict
 
 
 def solve_algric(A=None, R=None, W=None, X0=None,
-                 nwtnstps=10, nwtntol=1e-12,
-                 verbose=True):
+                 nwtnstps=20, nwtntol=1e-12,
+                 verbose=False):
     """ solve algebraic Riccati Equation via Newton iteration
 
     for dense matrices.
@@ -73,6 +118,10 @@ def solve_algric(A=None, R=None, W=None, X0=None,
         XN = XNN
         if verbose:
             print 'Newton step {0}: norm of update {1}'.format(nwtns, nwtnres)
+    if verbose:
+        ricres = np.dot(A.T, XN) + np.dot(XN, A) + \
+            np.dot(XN, np.dot(R, XN)) - W
+        print 'Ric Residual: {0}'.format(np.linalg.norm(ricres))
     return XN
 
 
@@ -104,7 +153,8 @@ def get_tint(t0, tE, Nts, sqzmesh=True, plotmesh=False):
 
 
 def comp_firstorder_mats(A=None, B=None, C=None, f=None,
-                         posini=None, velini=None):
+                         posini=None, velini=None,
+                         damp=False):
     """compute the matrices for the reformulation as a first order system
 
     Returns
@@ -125,7 +175,7 @@ def comp_firstorder_mats(A=None, B=None, C=None, f=None,
 
     tf = np.vstack([zerov, f])
 
-    tini = np.vstack([velini, posini])
+    tini = np.vstack([posini, velini])
 
     return tA, tB, tC, tf, tini
 
@@ -210,7 +260,7 @@ if __name__ == '__main__':
     defprbdict = dict(posini=np.array([[0.5], [0]]),
                       velini=np.array([[0.], [0.]]))
     tE = 6.
-    Nts = 39
+    Nts = 599
     g0, gf = 0.5, 2.5
 
     def trajec(t):
@@ -218,13 +268,13 @@ if __name__ == '__main__':
         return g0 + (126*trt**5 - 420*trt**6 + 540*trt**7 -
                      315*trt**8 + 70*trt**9)*(gf - g0)
 
-    defctrldict = dict(gamma=1e-3,
-                       beta=1e-5,
+    defctrldict = dict(gamma=1e-6,
+                       beta=1e-6,
                        g=trajec)
     A, B, C, f = get_abcf(**defsysdict)
     tA, tB, tC, tf, tini = comp_firstorder_mats(A=A, B=B, C=C, f=f,
                                                 **defprbdict)
-    tmesh = get_tint(0.0, tE, Nts, plotmesh=False)
+    tmesh = get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
 
     beta, gamma = defctrldict['beta'], defctrldict['gamma']
     bbt = 1./beta*np.dot(tB, tB.T)
@@ -239,5 +289,11 @@ if __name__ == '__main__':
     termw = gamma*fdua(tmesh[-1])
     termx = -gamma*ctc
 
-    # fbdict, ftdict = solve_fbft(A=tA, bbt=bbt, ctc=ctc, fpri=fpri, fdua=fdua,
-    #                             tmesh=tmesh, termx=termx, termw=termw, bt=tB.T)
+    fbdict, ftdict = solve_fbft(A=tA, bbt=bbt, ctc=ctc, fpri=fpri, fdua=fdua,
+                                tmesh=tmesh, termx=termx, termw=termw, bt=tB.T)
+
+    sysout = solve_cl_sys(A=tA, B=tB, C=tC, bmo=1./beta, f=tf,
+                          tmesh=tmesh, fbd=fbdict, ftd=ftdict, zini=tini)
+
+    plot_output(tmesh, sysout, trajec)
+    # plot_fbft(tmesh, fbdict, ftdict)
