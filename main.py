@@ -21,6 +21,7 @@ def solve_cl_sys(A=None, B=None, C=None, bmo=None, f=None,
 
 
 def plot_output(tmesh, outdict, targetsig=None):
+    plt.figure(44)
     outsigl = []
     trgsigl = []
     for t in tmesh:
@@ -29,7 +30,6 @@ def plot_output(tmesh, outdict, targetsig=None):
 
     plt.plot(tmesh, outsigl)
     plt.plot(tmesh, trgsigl)
-    plt.show()
 
 
 def plot_fbft(tmesh, fbdict, ftdict):
@@ -43,7 +43,6 @@ def plot_fbft(tmesh, fbdict, ftdict):
     plt.plot(tmesh, normfbl)
     plt.figure(22)
     plt.plot(tmesh, ftl)
-    plt.show()
 
 
 def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
@@ -74,6 +73,8 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
     fbdict = {t: np.dot(bt, termx)}
     ftdict = {t: np.dot(bt, termw)}
 
+    xnorml = [np.linalg.norm(termx)]
+
     Xc = termx
     wc = termw
 
@@ -94,6 +95,14 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
         prhs = wc + cts*np.dot(Xp, fpri(t)) + cts*fdua(t)
         wp = np.linalg.solve(M - cts*(A.T + cts*np.dot(Xp, bbt)), prhs)
         ftdict.update({t: np.dot(bt, wp)})
+        xnorml.append(np.linalg.norm(Xp))
+        Xc = Xp
+        wc = wp
+
+    plotxnorm = True
+    if plotxnorm:
+        plt.figure(33)
+        plt.plot(tmesh, xnorml)
 
     return fbdict, ftdict
 
@@ -172,6 +181,8 @@ def comp_firstorder_mats(A=None, B=None, C=None, f=None,
     zerov = np.zeros((N, 1))
     tB = np.vstack([zerov, B])
     tC = np.hstack([C, zerov.T])
+    # try vel observation
+    # tC = np.hstack([zerov.T, C])
 
     tf = np.vstack([zerov, f])
 
@@ -268,8 +279,8 @@ if __name__ == '__main__':
         return g0 + (126*trt**5 - 420*trt**6 + 540*trt**7 -
                      315*trt**8 + 70*trt**9)*(gf - g0)
 
-    defctrldict = dict(gamma=1e-6,
-                       beta=1e-6,
+    defctrldict = dict(gamma=1e-3,
+                       beta=1e-3,
                        g=trajec)
     A, B, C, f = get_abcf(**defsysdict)
     tA, tB, tC, tf, tini = comp_firstorder_mats(A=A, B=B, C=C, f=f,
@@ -296,4 +307,5 @@ if __name__ == '__main__':
                           tmesh=tmesh, fbd=fbdict, ftd=ftdict, zini=tini)
 
     plot_output(tmesh, sysout, trajec)
-    # plot_fbft(tmesh, fbdict, ftdict)
+    plot_fbft(tmesh, fbdict, ftdict)
+    plt.show(block=False)
