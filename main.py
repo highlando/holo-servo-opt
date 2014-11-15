@@ -11,16 +11,20 @@ def solve_cl_sys(A=None, B=None, C=None, bmo=None, f=None,
     t, zc = tmesh[0], zini
     M = np.eye(A.shape[0])
     outdict = {t: np.dot(C, zc)}
+    inpdict = {t: np.dot(B, bmo*ftd[t]) +
+               np.dot(np.dot(B, bmo*fbd[t]), zc)}
     for tk, t in enumerate(tmesh[1:]):
         cts = t - tmesh[tk]
+        inpdict.update({t: np.dot(B, bmo*ftd[t]) +
+                       np.dot(np.dot(B, bmo*fbd[t]), zc)})
         crhs = zc + cts*(f + np.dot(B, bmo*ftd[t]))
         cmat = M - cts*(A + np.dot(B, bmo*fbd[t]))
         zc = np.linalg.solve(cmat, crhs)
         outdict.update({t: np.dot(C, zc)})
-    return outdict
+    return outdict, inpdict
 
 
-def plot_output(tmesh, outdict, targetsig=None):
+def plot_output(tmesh, outdict, inpdict=None, targetsig=None):
     plt.figure(44)
     outsigl = []
     trgsigl = []
@@ -28,8 +32,16 @@ def plot_output(tmesh, outdict, targetsig=None):
         outsigl.append(outdict[t][0][0])
         trgsigl.append(targetsig(t))
 
-    plt.plot(tmesh, outsigl)
-    plt.plot(tmesh, trgsigl)
+    plt.plot(tmesh, outsigl, label='output')
+    plt.plot(tmesh, trgsigl, label='target trajec')
+    plt.legend()
+    if inpdict is not None:
+        inpl = []
+        for t in tmesh:
+            inpl.append(np.linalg.norm(inpdict[t]))
+        plt.figure(441)
+        plt.plot(tmesh, inpl, label='input force $Bu$')
+        plt.legend()
 
 
 def plot_fbft(tmesh, fbdict, ftdict):
@@ -303,9 +315,10 @@ if __name__ == '__main__':
     fbdict, ftdict = solve_fbft(A=tA, bbt=bbt, ctc=ctc, fpri=fpri, fdua=fdua,
                                 tmesh=tmesh, termx=termx, termw=termw, bt=tB.T)
 
-    sysout = solve_cl_sys(A=tA, B=tB, C=tC, bmo=1./beta, f=tf,
-                          tmesh=tmesh, fbd=fbdict, ftd=ftdict, zini=tini)
+    sysout, inpdict = solve_cl_sys(A=tA, B=tB, C=tC, bmo=1./beta, f=tf,
+                                   tmesh=tmesh, fbd=fbdict, ftd=ftdict,
+                                   zini=tini)
 
-    plot_output(tmesh, sysout, trajec)
-    plot_fbft(tmesh, fbdict, ftdict)
+    plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
+    # plot_fbft(tmesh, fbdict, ftdict)
     plt.show(block=False)
