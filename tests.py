@@ -26,7 +26,7 @@ def solve_fbft_stst(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
 
 
 if __name__ == '__main__':
-    steadystate = True
+    steadystate = False
     N = 2
     tA = np.array([[-2., 1.], [1., -2.]])
     tini = np.zeros((N, 1))
@@ -50,6 +50,7 @@ if __name__ == '__main__':
         trt = t/tE
         return g0 + (126*trt**5 - 420*trt**6 + 540*trt**7 -
                      315*trt**8 + 70*trt**9)*(gf - g0)
+        # return gf
 
     def fpri(t):
         return np.zeros((N, 1))
@@ -73,5 +74,5 @@ if __name__ == '__main__':
                               tmesh=tmesh, fbd=fbdict, ftd=ftdict, zini=tini)
 
     mnf.plot_output(tmesh, sysout, trajec)
-    mnf.plot_fbft(tmesh, fbdict, ftdict)
+    # mnf.plot_fbft(tmesh, fbdict, ftdict)
     plt.show(block=False)

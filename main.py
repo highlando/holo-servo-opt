@@ -93,7 +93,7 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
 
         # timestepping for the feedthrough variable
         prhs = wc + cts*np.dot(Xp, fpri(t)) + cts*fdua(t)
-        wp = np.linalg.solve(M - cts*(A.T + cts*np.dot(Xp, bbt)), prhs)
+        wp = np.linalg.solve(M - cts*(A.T + np.dot(Xp, bbt)), prhs)
         ftdict.update({t: np.dot(bt, wp)})
         xnorml.append(np.linalg.norm(Xp))
         Xc = Xp
