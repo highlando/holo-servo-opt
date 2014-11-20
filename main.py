@@ -2,6 +2,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import first_order_opti as fop
+import seco_order_opti as sop
+
+tE = 6.
+Nts = 599
+g0, gf = 0.5, 2.5
+Riccati = False
+bone = 1e-8
+bzero = 1e-8
+gamma = 1e-5
 
 
 def plot_output(tmesh, outdict, inpdict=None, targetsig=None):
@@ -143,9 +152,6 @@ if __name__ == '__main__':
                       printmats=True)
     defprbdict = dict(posini=np.array([[0.5], [0]]),
                       velini=np.array([[0.], [0.]]))
-    tE = 6.
-    Nts = 599
-    g0, gf = 0.5, 2.5
 
     def trajec(t):
         trt = t/tE
@@ -161,8 +167,6 @@ if __name__ == '__main__':
     tmesh = get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
 
     beta, gamma = defctrldict['beta'], defctrldict['gamma']
-    bbt = 1./beta*np.dot(tB, tB.T)
-    ctc = np.dot(tC.T, tC)
 
     def fpri(t):
         return tf
@@ -170,17 +174,55 @@ if __name__ == '__main__':
     def fdua(t):
         return np.dot(tC.T, trajec(t))
 
-    termw = gamma*fdua(tmesh[-1])
-    termx = -gamma*ctc
+    if Riccati:
+        bbt = 1./beta*np.dot(tB, tB.T)
+        ctc = np.dot(tC.T, tC)
+        termw = gamma*fdua(tmesh[-1])
+        termx = -gamma*ctc
 
-    fbdict, ftdict = fop.solve_fbft(A=tA, bbt=bbt, ctc=ctc,
-                                    fpri=fpri, fdua=fdua, tmesh=tmesh,
-                                    termx=termx, termw=termw, bt=tB.T)
+        fbdict, ftdict = fop.solve_fbft(A=tA, bbt=bbt, ctc=ctc,
+                                        fpri=fpri, fdua=fdua, tmesh=tmesh,
+                                        termx=termx, termw=termw, bt=tB.T)
 
-    sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC, bmo=1./beta, f=tf,
-                                       tmesh=tmesh, fbd=fbdict, ftd=ftdict,
-                                       zini=tini)
+        sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC, bmo=1./beta, f=tf,
+                                           tmesh=tmesh, fbd=fbdict, ftd=ftdict,
+                                           zini=tini)
 
-    plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
-    # plot_fbft(tmesh, fbdict, ftdict)
-    plt.show(block=False)
+        plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
+        # plot_fbft(tmesh, fbdict, ftdict)
+        plt.show(block=False)
+
+    else:
+        def fo(t):
+            return f[0]
+
+        def ft(t):
+            return f[1]
+
+        sol, gvec \
+            = sop.fd_fullsys(A=A, B=B, C=C, flist=[fo, ft], g=trajec,
+                             tmesh=tmesh.reshape((tmesh.size, 1)),
+                             Q=np.dot(C.T, C),
+                             bone=bone, bzero=bzero, gamma=gamma,
+                             inix=defprbdict['posini'],
+                             inidx=defprbdict['velini'])
+        nT = tmesh.size
+        l1 = sol[:nT]
+        l2 = sol[nT:2*nT]
+        x1 = sol[2*nT:3*nT]
+        x2 = sol[3*nT:4*nT]
+        u = sol[4*nT:]
+
+        def plot_all(tmesh, pltlist, leglist=None):
+            fn = 111
+            for k, data in enumerate(pltlist):
+                plt.figure(fn+k)
+                plt.plot(tmesh, data)
+                if leglist is not None:
+                    plt.title(leglist[k])
+            plt.show(block=False)
+            return
+
+        leglist = ['x1', 'x2', 'l1', 'l2', 'u', 'x1-g']
+        plotlist = [x1, x2, l1, l2, u, x1.flatten()-trajec(tmesh)]
+        plot_all(tmesh, plotlist, leglist=leglist)
