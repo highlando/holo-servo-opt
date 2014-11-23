@@ -22,7 +22,7 @@ def disc_func(f, intmesh):
 
 def fd_fullsys(A=None, B=None, C=None, flist=None, g=None,
                tmesh=None, Q=None, bone=None, bzero=None, gamma=None,
-               inix=None, inidx=None):
+               inix=None, inidx=None, udiril=[False, False]):
     """ finite differences for the second order optimality system
 
     0  I  0                     -  0     A  B               = f
@@ -107,27 +107,35 @@ def fd_fullsys(A=None, B=None, C=None, flist=None, g=None,
     # on du : du(0) = 0
     bcduz = np.zeros((nu, (nx+nx+nu)*nT))
     fbcduz = np.zeros((nu, 1))
-    for k in range(nu):
-        bcduz[k, (nx+nx+k)*nT] = -1
-        bcduz[k, (nx+nx+k)*nT+1] = 1
-        fbcduz[k] = 0
+    if udiril[0]:  # u(0) = 0
+        for k in range(nu):
+            bcduz[k, (nx+nx+k)*nT] = 1
+            fbcduz[k] = 0
+    else:  # or du(0) = 0
+        for k in range(nu):
+            bcduz[k, (nx+nx+k)*nT] = -1
+            bcduz[k, (nx+nx+k)*nT+1] = 1
+            fbcduz[k] = 0
 
     # on du : du(T) = 0
     bcdut = np.zeros((nu, (nx+nx+nu)*nT))
     fbcdut = np.zeros((nu, 1))
-    for k in range(nu):
-        bcdut[k, (nx+nx+k+1)*nT-2] = -1
-        bcdut[k, (nx+nx+k+1)*nT-1] = 1
-        fbcdut[k] = 0
+    if udiril[0]:  # u(0) = 0
+        for k in range(nu):
+            bcdut[k, (nx+nx+k+1)*nT-1] = 1
+            fbcdut[k] = 0
+    else:
+        for k in range(nu):
+            bcdut[k, (nx+nx+k+1)*nT-2] = -1
+            bcdut[k, (nx+nx+k+1)*nT-1] = 1
+            fbcdut[k] = 0
 
     bccoff = np.vstack([bcx, bcdx, bcl, bcdl, bcduz, bcdut])
     bcrhs = np.vstack([fbcx, fbcdx, fbcl, fbcdl, fbcduz, fbcdut])
 
-    # raise Warning('TODO: debug')
     coeff = np.vstack([bigdiff-bigcoff, bccoff])
     rhs = np.vstack([rhsinner, bcrhs])
 
-    # raise Warning('TODO: debug')
     sol = npla.solve(coeff, rhs)
     return sol, gvec
 

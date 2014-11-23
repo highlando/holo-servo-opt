@@ -57,7 +57,7 @@ def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
         Xc = Xp
         wc = wp
 
-    plotxnorm = True
+    plotxnorm = False
     if plotxnorm:
         plt.figure(33)
         plt.plot(tmesh, xnorml)
