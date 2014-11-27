@@ -137,7 +137,7 @@ def fd_fullsys(A=None, B=None, C=None, flist=None, g=None,
     rhs = np.vstack([rhsinner, bcrhs])
 
     sol = npla.solve(coeff, rhs)
-    return sol, gvec
+    return sol
 
 if __name__ == '__main__':
     # tmesh = np.array([0., 0.1, 0.3, 0.4, 0.8, 0.9, 1.]).reshape((7, 1))

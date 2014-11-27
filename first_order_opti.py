@@ -3,6 +3,20 @@ import scipy.linalg as spla
 import matplotlib.pyplot as plt
 
 
+def solve_opt_ric(A=None, beta=None, B=None, C=None, gamma=None,
+                  fpri=None, fdua=None, bt=None, tmesh=None):
+    bbt = 1./beta*np.dot(B, B.T)
+    ctc = np.dot(C.T, C)
+    termw = gamma*fdua(tmesh[-1])
+    termx = -gamma*ctc
+
+    fbdict, ftdict = solve_fbft(A=A, bbt=bbt, ctc=ctc,
+                                fpri=fpri, fdua=fdua, tmesh=tmesh,
+                                termx=termx, termw=termw, bt=bt)
+
+    return fbdict, ftdict
+
+
 def solve_fbft(A=None, bbt=None, ctc=None, fpri=None, fdua=None,
                tmesh=None, termx=None, termw=None, bt=None, verbose=False):
     """solve for feedback gain and feedthrough
