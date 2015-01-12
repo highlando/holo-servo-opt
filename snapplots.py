@@ -8,9 +8,8 @@ import plot_utils as plu
 # parameters of the optimization problem
 tE = 6.
 Nts = 599
-Riccati = False
 udiril = [True, False]
-bone = 1*1e-12
+bone = 0*1e-12
 bzero = 1e-12
 gamma = 0*1e-3
 trjl = ['pwp', 'atan', 'plnm']
@@ -19,7 +18,7 @@ trgt = trjl[0]
 # parameters of the target funcs
 g0, gf = 0.5, 2.5
 trnsarea = 1.  # size of the transition area in the pwl
-polydeg = 5
+polydeg = 7
 tanpa = 8
 
 # parameters of the system
@@ -53,26 +52,17 @@ def fdua(t):
 
 if __name__ == '__main__':
 
-    if Riccati:
+    def fo(t):
+        return f[0]
 
-        fbdict, ftdict = fop.solve_opt_ric(A=tA, B=tB, C=tC, tmesh=tmesh,
-                                           gamma=gamma, beta=bzero,
-                                           fpri=fpri, fdua=fdua, bt=tB.T)
+    def ft(t):
+        return f[1]
 
-        sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
-                                           bmo=1./bzero, f=tf,
-                                           tmesh=tmesh, zini=tini,
-                                           fbd=fbdict, ftd=ftdict)
+    bzerl = [10**(-x) for x in np.arange(4, 13, 2)]
+    legl = ['$\\beta_0 = {0}$'.format(bzero) for bz in bzerl]
 
-        plu.plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
-
-    else:
-        def fo(t):
-            return f[0]
-
-        def ft(t):
-            return f[1]
-
+    ulist, xlist = [], []
+    for bzero in bzerl:
         sol = sop.fd_fullsys(A=A, B=B, C=C, flist=[fo, ft], g=trajec,
                              tmesh=tmesh.reshape((tmesh.size, 1)),
                              Q=np.dot(C.T, C),
@@ -86,7 +76,9 @@ if __name__ == '__main__':
         x1 = sol[2*nT:3*nT]
         x2 = sol[3*nT:4*nT]
         u = sol[4*nT:]
+        ulist.append(u)
+        xlist.append(x)
 
-        leglist = ['x1', 'x2', 'l1', 'l2', 'u', 'x1-g']
-        plotlist = [x1, x2, l1, l2, u, x1.flatten()-gvec]
-        plu.plot_all(tmesh, plotlist, leglist=leglist)
+    leglist = ['x1', 'x2', 'l1', 'l2', 'u', 'x1-g']
+    plotlist = [x1, x2, l1, l2, u, x1.flatten()-gvec]
+    plu.plot_all(tmesh, plotlist, leglist=leglist)
