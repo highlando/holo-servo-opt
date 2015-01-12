@@ -10,15 +10,16 @@ tE = 6.
 Nts = 599
 Riccati = False
 udiril = [True, False]
-bone = 1e-8
-bzero = 1e-10
-gamma = 0*1e-5
-trjl = ['pwl', 'atan', 'plnm']
-trgt = trjl[2]
+bone = 1*1e-12
+bzero = 1e-12
+gamma = 0*1e-3
+trjl = ['pwp', 'atan', 'plnm']
+trgt = trjl[0]
 
 # parameters of the target funcs
 g0, gf = 0.5, 2.5
-trnsarea = .4  # size of the transition area in the pwl
+trnsarea = 1.  # size of the transition area in the pwl
+polydeg = 5
 tanpa = 8
 
 # parameters of the system
@@ -34,7 +35,7 @@ tA, tB, tC, tf, tini = fop.comp_firstorder_mats(A=A, B=B, C=C, f=f,
                                                 **defprbdict)
 tmesh = pbd.get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
 
-trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf,
+trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
                         trnsarea=trnsarea, tanpa=tanpa)
 
 gvec = np.zeros(tmesh.shape)
