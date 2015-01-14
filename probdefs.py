@@ -76,7 +76,7 @@ def get_abcf(kvec=None, mvec=None, dvec=None, N=None, printmats=False):
 
 def get_trajec(trgt, tE=None, g0=None, gf=None,
                trnsarea=None, tanpa=None, tM=None,
-               polydeg=None):
+               polydeg=None, retderivs=False):
     if trgt == 'pwl':
         tM = tE/2
 
@@ -95,8 +95,10 @@ def get_trajec(trgt, tE=None, g0=None, gf=None,
         def trajec(t):
             if t < tM - trnsarea/2:
                 g = g0
+                ddg, dfg = 0, 0
             elif t > tM + trnsarea/2:
                 g = gf
+                ddg, dfg = 0, 0
             else:
                 s = (t + -tM + trnsarea/2)/trnsarea
                 if polydeg == 1:
@@ -107,12 +109,19 @@ def get_trajec(trgt, tE=None, g0=None, gf=None,
                     g = g0 + (gf-g0)*(10*s**3 - 15*s**4 + 6*s**5)
                 elif polydeg == 7:
                     g = g0 + (gf-g0)*(35*s**4 - 84*s**5 + 70*s**6 - 20*s**7)
+                    ddg = (gf-g0)*(3*4*35*s**2 - 4*5*84*s**3 +
+                                   5*6*70*s**4 - 6*7*20*s**5)
+                    dfg = (gf-g0)*(1*2*3*4*35 - 2*3*4*5*84*s**1 +
+                                   3*4*5*6*70*s**2 - 4*5*6*7*20*s**3)
                 elif polydeg == 9:
                     g = g0 + (126*s**5 - 420*s**6 + 540*s**7 -
                               315*s**8 + 70*s**9)*(gf - g0)
                 else:
                     raise Warning('polydeg needs be defined')
-            return g
+            if retderivs:
+                return g, ddg, dfg
+            else:
+                return g
 
     elif trgt == 'atan':
         tM = tE/2

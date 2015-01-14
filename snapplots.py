@@ -3,11 +3,13 @@ import numpy as np
 import probdefs as pbd
 import first_order_opti as fop
 import seco_order_opti as sop
-import plot_utils as plu
+# import plot_utils as plu
+
+import matlibplots.conv_plot_utils as cpu
 
 # parameters of the optimization problem
 tE = 6.
-Nts = 599
+Nts = 899
 udiril = [True, False]
 bone = 0*1e-12
 bzero = 1e-12
@@ -17,12 +19,12 @@ trgt = trjl[0]
 
 # parameters of the target funcs
 g0, gf = 0.5, 2.5
-trnsarea = 1.  # size of the transition area in the pwl
+trnsarea = .5  # size of the transition area in the pwl
 polydeg = 7
 tanpa = 8
 
 # parameters of the system
-defsysdict = dict(mvec=np.array([2., 1.]),
+defsysdict = dict(mvec=np.array([1., 2.]),
                   dvec=np.array([0.5]),
                   kvec=np.array([10.]),
                   printmats=True)
@@ -33,6 +35,9 @@ A, B, C, f = pbd.get_abcf(**defsysdict)
 tA, tB, tC, tf, tini = fop.comp_firstorder_mats(A=A, B=B, C=C, f=f,
                                                 **defprbdict)
 tmesh = pbd.get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
+
+trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
+                        trnsarea=trnsarea, tanpa=tanpa)
 
 trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
                         trnsarea=trnsarea, tanpa=tanpa)
@@ -49,6 +54,12 @@ def fpri(t):
 def fdua(t):
     return np.dot(tC.T, trajec(t))
 
+dtrajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
+                         trnsarea=trnsarea, tanpa=tanpa, retderivs=True)
+
+fvec = np.zeros(tmesh.shape)
+for k, tc in enumerate(tmesh.tolist()):
+    fvec[k] = 2./defsysdict['kvec'][0]*dtrajec(tc)[2] - dtrajec(tc)[1]
 
 if __name__ == '__main__':
 
@@ -58,8 +69,8 @@ if __name__ == '__main__':
     def ft(t):
         return f[1]
 
-    bzerl = [10**(-x) for x in np.arange(4, 13, 2)]
-    legl = ['$\\beta_0 = {0}$'.format(bzero) for bz in bzerl]
+    bzerl = [10**(-x) for x in np.arange(4, 11, 3)]
+    legl = ['$\\beta_0 = {0}$'.format(bz) for bz in bzerl]
 
     ulist, xlist = [], []
     for bzero in bzerl:
@@ -77,8 +88,19 @@ if __name__ == '__main__':
         x2 = sol[3*nT:4*nT]
         u = sol[4*nT:]
         ulist.append(u)
-        xlist.append(x)
+        xlist.append(x1)
 
-    leglist = ['x1', 'x2', 'l1', 'l2', 'u', 'x1-g']
-    plotlist = [x1, x2, l1, l2, u, x1.flatten()-gvec]
-    plu.plot_all(tmesh, plotlist, leglist=leglist)
+    cpu.para_plot(tmesh, xlist, leglist=legl, fignum=1,
+                  xlabel='$t$', ylabel='$x_1$',
+                  tikzfile='snapplot_trajs.tikz',
+                  title='Optimal trajectory')
+    cpu.para_plot(tmesh, ulist, leglist=legl, fignum=2,
+                  xlabel='$t$', ylabel='$F$',
+                  tikzfile='snapplot_us.tikz',
+                  title='Optimal control force')
+    ulist.append(fvec)
+    legl.append('Exact control')
+    cpu.para_plot(tmesh, ulist, leglist=legl, fignum=3,
+                  xlabel='$t$', ylabel='$F$',
+                  tikzfile='snapplot_usex.tikz',
+                  title='Optimal control force')
