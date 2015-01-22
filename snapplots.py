@@ -9,7 +9,7 @@ import matlibplots.conv_plot_utils as cpu
 
 # parameters of the optimization problem
 tE = 6.
-Nts = 899
+Nts = 599
 udiril = [True, False]
 bone = 0*1e-12
 bzero = 1e-12
@@ -19,14 +19,14 @@ trgt = trjl[0]
 
 # parameters of the target funcs
 g0, gf = 0.5, 2.5
-trnsarea = .5  # size of the transition area in the pwl
+trnsarea = 1.  # size of the transition area in the pwl
 polydeg = 7
 tanpa = 8
 
 # parameters of the system
 defsysdict = dict(mvec=np.array([1., 2.]),
                   dvec=np.array([0.5]),
-                  kvec=np.array([10.]),
+                  kvec=np.array([1.]),
                   printmats=True)
 defprbdict = dict(posini=np.array([[0.5], [0]]),
                   velini=np.array([[0.], [0.]]))
@@ -59,7 +59,7 @@ dtrajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
 
 fvec = np.zeros(tmesh.shape)
 for k, tc in enumerate(tmesh.tolist()):
-    fvec[k] = 2./defsysdict['kvec'][0]*dtrajec(tc)[2] - dtrajec(tc)[1]
+    fvec[k] = 2./defsysdict['kvec'][0]*dtrajec(tc)[2] + 1*dtrajec(tc)[1]
 
 if __name__ == '__main__':
 
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     def ft(t):
         return f[1]
 
-    bzerl = [10**(-x) for x in np.arange(4, 11, 3)]
+    bzerl = [10**(-x) for x in np.arange(5, 10, 2)]
     legl = ['$\\beta_0 = {0}$'.format(bz) for bz in bzerl]
 
     ulist, xlist = [], []
@@ -90,17 +90,26 @@ if __name__ == '__main__':
         ulist.append(u)
         xlist.append(x1)
 
-    cpu.para_plot(tmesh, xlist, leglist=legl, fignum=1,
-                  xlabel='$t$', ylabel='$x_1$',
+    # cpu.para_plot(tmesh, xlist, leglist=legl, fignum=1,
+    #               xlabel='$t$', ylabel='$x_1$',
+    #               tikzfile='snapplot_trajs.tikz',
+    #               title='Optimal trajectory')
+    # cpu.para_plot(tmesh, ulist, leglist=legl, fignum=2,
+    #               xlabel='$t$', ylabel='$F$',
+    #               tikzfile='snapplot_us.tikz',
+    #               title='Optimal control force')
+
+    ulist.insert(0, fvec)
+    xlist.insert(0, gvec)
+    legl.insert(0, 'Exakte L\\"o sung')
+    print legl
+
+    cpu.para_plot(tmesh, xlist, leglist=legl, fignum=3,
+                  xlabel='$t$', ylabel='$x_2$',
                   tikzfile='snapplot_trajs.tikz',
-                  title='Optimal trajectory')
-    cpu.para_plot(tmesh, ulist, leglist=legl, fignum=2,
-                  xlabel='$t$', ylabel='$F$',
-                  tikzfile='snapplot_us.tikz',
-                  title='Optimal control force')
-    ulist.append(fvec)
-    legl.append('Exact control')
-    cpu.para_plot(tmesh, ulist, leglist=legl, fignum=3,
+                  title='Trajektorie')
+
+    cpu.para_plot(tmesh, ulist, leglist=legl, fignum=4,
                   xlabel='$t$', ylabel='$F$',
                   tikzfile='snapplot_usex.tikz',
-                  title='Optimal control force')
+                  title='Kontrollkraft')
