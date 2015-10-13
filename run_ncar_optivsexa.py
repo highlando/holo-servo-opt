@@ -18,7 +18,7 @@ ncar = 2
 
 # parameters of the optimization problem
 tE = 6.
-Nts = 599
+Nts = 2400
 udiril = [True, False]
 bone = 0*1e-12
 bzero = 1e-7
@@ -29,7 +29,7 @@ trgt = trjl[0]
 # parameters of the target funcs
 g0, gf = 0.5, 2.5
 trnsarea = 1.  # size of the transition area in the pwl
-polydeg = 7
+polydeg = 9
 tanpa = 8
 
 # parameters of the system
@@ -90,20 +90,20 @@ if __name__ == '__main__':
 
     if fbcheck:
 
-        fbdict, ftdict = fop.solve_opt_ric(A=tA, B=tB, C=tC, tmesh=tmesh,
-                                           gamma=gamma, beta=bzero,
-                                           fpri=fpri, fdua=fdua, bt=tB.T)
+        # # Riccati solution
+        # fbdict, ftdict = fop.solve_opt_ric(A=tA, B=tB, C=tC, tmesh=tmesh,
+        #                                    gamma=gamma, beta=bzero,
+        #                                    fpri=fpri, fdua=fdua, bt=tB.T)
 
-        # Riccati solution
-        sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
-                                           bmo=1./bzero, f=tf,
-                                           tmesh=tmesh, zini=tini,
-                                           fbd=fbdict, ftd=ftdict)
-        # direct solution
         # sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
-        #                                    bmo=1., f=tf,
+        #                                    bmo=1./bzero, f=tf,
         #                                    tmesh=tmesh, zini=tini,
-        #                                    fbd=None, ftd=forcefunc)
+        #                                    fbd=fbdict, ftd=ftdict)
+        # direct solution
+        sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
+                                           bmo=1., f=tf,
+                                           tmesh=tmesh, zini=tini,
+                                           fbd=None, ftd=forcefunc)
 
         plu.plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
 

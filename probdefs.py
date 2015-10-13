@@ -124,6 +124,12 @@ def get_trajec(trgt, tE=None, g0=None, gf=None,
                 elif polydeg == 9:
                     g = g0 + (126*s**5 - 420*s**6 + 540*s**7 -
                               315*s**8 + 70*s**9)*(gf - g0)
+                    ddg = (4*5*126*s**3 - 5*6*420*s**4 + 6*7*540*s**5 -
+                           7*8*315*s**6 + 8*9*70*s**7)*(gf - g0)
+                    dfg = (2*3*4*5*126*s**1 - 3*4*5*6*420*s**2 +
+                           4*5*6*7*540*s**3 - 5*6*7*8*315*s**4 +
+                           6*7*8*9*70*s**5)*(gf - g0)
+
                 else:
                     raise Warning('polydeg needs be defined')
             if retderivs:
