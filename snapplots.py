@@ -13,7 +13,7 @@ Nts = 599
 udiril = [True, False]
 bone = 0*1e-12
 bzero = 1e-12
-gamma = 0*1e-3
+gamma = 1.  # 0*1e-3
 trjl = ['pwp', 'atan', 'plnm']
 trgt = trjl[0]
 

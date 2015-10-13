@@ -77,6 +77,14 @@ def get_abcf(kvec=None, mvec=None, dvec=None, N=None, printmats=False):
 def get_trajec(trgt, tE=None, g0=None, gf=None,
                trnsarea=None, tanpa=None, tM=None,
                polydeg=None, retderivs=False):
+    '''
+
+    Returns
+    ---
+    trajec : callable(t)
+        returning the value `g` of the trajectory and, if `retderivs==True`,
+        also the `ddg`, `dfg` the value of the second and fourth derivative
+    '''
     if trgt == 'pwl':
         tM = tE/2
 
