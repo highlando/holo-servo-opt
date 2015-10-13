@@ -3,18 +3,25 @@ import numpy as np
 import probdefs as pbd
 import first_order_opti as fop
 import seco_order_opti as sop
-# import plot_utils as plu
+import plot_utils as plu
 
 import matlibplots.conv_plot_utils as cpu
+
+# setup of the tests
+opticheck, fbcheck = False, False
+# make it come true
+# opticheck = True
+fbcheck = True
+
 # parameters of the problem
-ncar = 3
+ncar = 2
 
 # parameters of the optimization problem
 tE = 6.
 Nts = 599
 udiril = [True, False]
 bone = 0*1e-12
-bzero = 1e-12
+bzero = 1e-7
 gamma = 1.  # 0*1e-3
 trjl = ['pwp', 'atan', 'plnm']
 trgt = trjl[0]
@@ -52,9 +59,6 @@ tmesh = pbd.get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
 trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
                         trnsarea=trnsarea, tanpa=tanpa)
 
-trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
-                        trnsarea=trnsarea, tanpa=tanpa)
-
 gvec = np.zeros(tmesh.shape)
 for k, tc in enumerate(tmesh.tolist()):
     gvec[k] = trajec(tc)
@@ -75,65 +79,77 @@ fvec = np.zeros(tmesh.shape)
 for k, tc in enumerate(tmesh.tolist()):
     fvec[k] = 2./defsysdict['kvec'][0]*dtrajec(tc)[2] + 1*dtrajec(tc)[1]
 
+
+def forcefunc(t):
+    return 2./defsysdict['kvec'][0]*dtrajec(t)[2] + 3*dtrajec(t)[1]
+
 if __name__ == '__main__':
-
-    def fone(t):
-        return f[0]
-
-    def ftwo(t):
-        return f[1]
-
-    def fthr(t):
-        return f[2]
-
-    if ncar == 2:
-        flist = [fone, ftwo]
-    if ncar == 3:
-        flist = [fone, ftwo, fthr]
 
     bzerl = [10**(-x) for x in np.arange(5, 10, 2)]  # [10**(-7)]
     legl = ['$\\beta_0 = {0}$'.format(bz) for bz in bzerl]
 
-    ulist, xlist = [], []
-    for bzero in bzerl:
-        sol = sop.fd_fullsys(A=A, B=B, C=C, flist=flist, g=trajec,
-                             tmesh=tmesh.reshape((tmesh.size, 1)),
-                             Q=np.dot(C.T, C),
-                             bone=bone, bzero=bzero, gamma=gamma,
-                             inix=defprbdict['posini'],
-                             inidx=defprbdict['velini'],
-                             udiril=udiril)
-        nT = tmesh.size
-        #  l1 = sol[:nT]
-        #  l2 = sol[nT:2*nT]
-        #  x1 = sol[2*nT:3*nT]
-        #  x2 = sol[3*nT:4*nT]
-        #  u = sol[4*nT:]
-        x1 = sol[ncar*nT: (ncar+1)*nT]
-        u = sol[-nT:]
-        ulist.append(u)
-        xlist.append(x1)
+    if fbcheck:
 
-    # cpu.para_plot(tmesh, xlist, leglist=legl, fignum=1,
-    #               xlabel='$t$', ylabel='$x_1$',
-    #               tikzfile='snapplot_trajs.tikz',
-    #               title='Optimal trajectory')
-    # cpu.para_plot(tmesh, ulist, leglist=legl, fignum=2,
-    #               xlabel='$t$', ylabel='$F$',
-    #               tikzfile='snapplot_us.tikz',
-    #               title='Optimal control force')
+        # fbdict, ftdict = fop.solve_opt_ric(A=tA, B=tB, C=tC, tmesh=tmesh,
+        #                                    gamma=gamma, beta=bzero,
+        #                                    fpri=fpri, fdua=fdua, bt=tB.T)
 
-    ulist.insert(0, fvec)
-    xlist.insert(0, gvec)
-    legl.insert(0, 'exact')  # Exakte L\\"osung')
-    print legl
+        # Riccati solution
+        # sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
+        #                                    bmo=1./bzero, f=tf,
+        #                                    tmesh=tmesh, zini=tini,
+        #                                    fbd=fbdict, ftd=ftdict)
+        # direct solution
+        sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
+                                           bmo=1., f=tf,
+                                           tmesh=tmesh, zini=tini,
+                                           fbd=None, ftd=forcefunc)
 
-    cpu.para_plot(tmesh, xlist, leglist=legl, fignum=3,
-                  xlabel='Time $t$', ylabel='trajectory $x_3$',
-                  tikzfile='snapplot_{0}car_trajs.tikz'.format(ncar),
-                  title=None)  # 'Trajektorie')
+        plu.plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
 
-    cpu.para_plot(tmesh, ulist, leglist=legl, fignum=4,
-                  xlabel='time $t$', ylabel='input $F$',
-                  tikzfile='snapplot_{0}car_usex.tikz'.format(ncar),
-                  title=None)  # 'Kontrollkraft')
+    if opticheck:
+        def fone(t):
+            return f[0]
+
+        def ftwo(t):
+            return f[1]
+
+        def fthr(t):
+            return f[2]
+
+        if ncar == 2:
+            flist = [fone, ftwo]
+        if ncar == 3:
+            flist = [fone, ftwo, fthr]
+        else:
+            raise NotImplementedError('only 2 or 3 cars')
+
+        ulist, xlist = [], []
+        for bzero in bzerl:
+            sol = sop.fd_fullsys(A=A, B=B, C=C, flist=flist, g=trajec,
+                                 tmesh=tmesh.reshape((tmesh.size, 1)),
+                                 Q=np.dot(C.T, C),
+                                 bone=bone, bzero=bzero, gamma=gamma,
+                                 inix=defprbdict['posini'],
+                                 inidx=defprbdict['velini'],
+                                 udiril=udiril)
+            nT = tmesh.size
+            x1 = sol[ncar*nT: (ncar+1)*nT]
+            u = sol[-nT:]
+            ulist.append(u)
+            xlist.append(x1)
+
+        ulist.insert(0, fvec)
+        xlist.insert(0, gvec)
+        legl.insert(0, 'exact')  # Exakte L\\"osung')
+        print legl
+
+        cpu.para_plot(tmesh, xlist, leglist=legl, fignum=3,
+                      xlabel='Time $t$', ylabel='trajectory $x_3$',
+                      tikzfile='snapplot_{0}car_trajs.tikz'.format(ncar),
+                      title=None)  # 'Trajektorie')
+
+        cpu.para_plot(tmesh, ulist, leglist=legl, fignum=4,
+                      xlabel='time $t$', ylabel='input $F$',
+                      tikzfile='snapplot_{0}car_usex.tikz'.format(ncar),
+                      title=None)  # 'Kontrollkraft')

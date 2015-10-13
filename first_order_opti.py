@@ -110,18 +110,38 @@ def solve_cl_sys(A=None, B=None, C=None, bmo=None, f=None,
                  tmesh=None, fbd=None, ftd=None, zini=None):
     """solve the (closed loop) forward problem
 
+    by implicit Euler
     """
     t, zc = tmesh[0], zini
     M = np.eye(A.shape[0])
+
+    def _feedbackgain(t):
+        if fbd is None:
+            return 0*A  # a zero matrix
+        else:
+            return np.dot(B, bmo*fbd[t])
+
+    def _feedthrough(t):
+        if ftd is None:
+            return np.zeros((B.shape[0], 1))  # a zero input
+        else:
+            if ftd.__class__ == dict:
+                return np.dot(B, bmo*ftd[t])
+            else:
+                try:
+                    return np.dot(B, bmo*ftd(t))  # maybe it is a function
+                except TypeError:
+                    return np.dot(B, bmo*ftd)  # or a constant??
+
     outdict = {t: np.dot(C, zc)}
-    inpdict = {t: np.dot(B, bmo*ftd[t]) +
-               np.dot(np.dot(B, bmo*fbd[t]), zc)}
+    inpdict = {t: _feedthrough(t) + np.dot(_feedbackgain(t), zc)}
+
     for tk, t in enumerate(tmesh[1:]):
         cts = t - tmesh[tk]
-        inpdict.update({t: np.dot(B, bmo*ftd[t]) +
-                       np.dot(np.dot(B, bmo*fbd[t]), zc)})
-        crhs = zc + cts*(f + np.dot(B, bmo*ftd[t]))
-        cmat = M - cts*(A + np.dot(B, bmo*fbd[t]))
+        inpdict.update({t: _feedthrough(t) +
+                       np.dot(_feedbackgain(t), zc)})
+        crhs = zc + cts*(f + _feedthrough(t))
+        cmat = M - cts*(A + _feedbackgain(t))
         zc = np.linalg.solve(cmat, crhs)
         outdict.update({t: np.dot(C, zc)})
     return outdict, inpdict
