@@ -140,9 +140,8 @@ def solve_cl_sys(A=None, B=None, C=None, bmo=None, f=None,
         cts = t - tmesh[tk]
         inpdict.update({t: _feedthrough(t) +
                        np.dot(_feedbackgain(t), zc)})
-        crhs = zc + 0.5*cts*(2*f - np.dot(A, zc) +
-                             _feedthrough(t) + _feedthrough(t-cts))
-        cmat = M - 0.5*cts*(A + _feedbackgain(t))
+        crhs = zc + cts*(f + _feedthrough(t))
+        cmat = M - cts*(A + _feedbackgain(t))
         zc = np.linalg.solve(cmat, crhs)
         outdict.update({t: np.dot(C, zc)})
     return outdict, inpdict

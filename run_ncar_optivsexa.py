@@ -90,20 +90,20 @@ if __name__ == '__main__':
 
     if fbcheck:
 
-        # fbdict, ftdict = fop.solve_opt_ric(A=tA, B=tB, C=tC, tmesh=tmesh,
-        #                                    gamma=gamma, beta=bzero,
-        #                                    fpri=fpri, fdua=fdua, bt=tB.T)
+        fbdict, ftdict = fop.solve_opt_ric(A=tA, B=tB, C=tC, tmesh=tmesh,
+                                           gamma=gamma, beta=bzero,
+                                           fpri=fpri, fdua=fdua, bt=tB.T)
 
         # Riccati solution
-        # sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
-        #                                    bmo=1./bzero, f=tf,
-        #                                    tmesh=tmesh, zini=tini,
-        #                                    fbd=fbdict, ftd=ftdict)
-        # direct solution
         sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
-                                           bmo=1., f=tf,
+                                           bmo=1./bzero, f=tf,
                                            tmesh=tmesh, zini=tini,
-                                           fbd=None, ftd=forcefunc)
+                                           fbd=fbdict, ftd=ftdict)
+        # direct solution
+        # sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
+        #                                    bmo=1., f=tf,
+        #                                    tmesh=tmesh, zini=tini,
+        #                                    fbd=None, ftd=forcefunc)
 
         plu.plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
 
