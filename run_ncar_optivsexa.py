@@ -6,6 +6,8 @@ import seco_order_opti as sop
 # import plot_utils as plu
 
 import matlibplots.conv_plot_utils as cpu
+# parameters of the problem
+ncar = 2
 
 # parameters of the optimization problem
 tE = 6.
@@ -24,16 +26,27 @@ polydeg = 7
 tanpa = 8
 
 # parameters of the system
-defsysdict = dict(mvec=np.array([1., 2.]),
-                  dvec=np.array([0.5]),
-                  kvec=np.array([1.]),
-                  printmats=True)
-defprbdict = dict(posini=np.array([[0.5], [0]]),
-                  velini=np.array([[0.], [0.]]))
+if ncar == 2:
+    defsysdict = dict(mvec=np.array([1., 2.]),
+                      dvec=np.array([0.5]),
+                      kvec=np.array([1.]),
+                      printmats=True)
+    defprbdict = dict(posini=np.array([[0.5], [0]]),
+                      velini=np.array([[0.], [0.]]))
+elif ncar == 3:
+    defsysdict = dict(mvec=np.array([1, 1., 2.]),
+                      dvec=np.array([0.5, 0.5]),
+                      kvec=np.array([1., 1.]),
+                      printmats=True)
+    defprbdict = dict(posini=np.array([[1], [0.5], [0]]),
+                      velini=np.array([[0.], [0.], [0.]]))
+else:
+    raise NotImplementedError('only 2 or 3 cars')
 
 A, B, C, f = pbd.get_abcf(**defsysdict)
 tA, tB, tC, tf, tini = fop.comp_firstorder_mats(A=A, B=B, C=C, f=f,
                                                 **defprbdict)
+
 tmesh = pbd.get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
 
 trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
