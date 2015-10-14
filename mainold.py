@@ -2,6 +2,7 @@ import numpy as np
 
 import probdefs as pbd
 import first_order_opti as fop
+import first_order_shoot as fos
 import seco_order_opti as sop
 import plot_utils as plu
 
@@ -9,9 +10,10 @@ import plot_utils as plu
 tE = 6.
 Nts = 599
 Riccati = False
+SingShooting = True
 udiril = [True, False]
-bone = 1e-8
-bzero = 1e-10
+bone = 3 #1e-8
+bzero = 2 #1e-10
 gamma = 0*1e-5
 trjl = ['pwl', 'atan', 'plnm']
 trgt = trjl[2]
@@ -64,6 +66,16 @@ if __name__ == '__main__':
                                            fbd=fbdict, ftd=ftdict)
 
         plu.plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
+        
+    elif SingShooting:
+
+        print 'Shooting. first order:'
+        
+        fos.solve_opt_shoot(tA=tA, tB=tB, tC=tC, tmesh=tmesh, zini=tini,
+                                           gamma=gamma, beta0=bzero, beta1=bone,
+                                           fpri=fpri, fdua=fdua, bt=tB.T)
+        
+        
 
     else:
         def fo(t):
