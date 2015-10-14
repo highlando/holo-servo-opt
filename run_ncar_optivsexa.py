@@ -3,7 +3,6 @@ import numpy as np
 import probdefs as pbd
 import first_order_opti as fop
 import seco_order_opti as sop
-import plot_utils as plu
 
 import matlibplots.conv_plot_utils as cpu
 
@@ -21,7 +20,6 @@ tE = 6.
 Nts = 2400
 udiril = [True, False]
 bone = 0*1e-12
-bzero = 1e-7
 gamma = 1.  # 0*1e-3
 trjl = ['pwp', 'atan', 'plnm']
 trgt = trjl[0]
@@ -31,6 +29,10 @@ g0, gf = 0.5, 2.5
 trnsarea = 1.  # size of the transition area in the pwl
 polydeg = 9
 tanpa = 8
+
+# parameters for the perturbation
+peps = 0.3
+veps = 0.3
 
 # parameters of the system
 if ncar == 2:
@@ -84,30 +86,57 @@ def forcefunc(t):
     return 2./defsysdict['kvec'][0]*dtrajec(t)[2] + 3*dtrajec(t)[1]
 
 if __name__ == '__main__':
-
     bzerl = [10**(-x) for x in np.arange(5, 10, 2)]  # [10**(-7)]
     legl = ['$\\beta_0 = {0}$'.format(bz) for bz in bzerl]
+    bzero = 1e-9
 
     if fbcheck:
+        tinipv, tinipp, tinipppv = np.copy(tini), np.copy(tini), np.copy(tini)
+        tinipp[0] = tini[0] + peps
+        tinipv[ncar] = tini[ncar] + veps
+        tinipv[ncar] = tini[ncar] + veps
+        tinipppv[0] = tini[0] + peps
+        tinipppv[ncar] = tini[ncar] + veps
+        inilist = [tini, tinipv, tinipp, tinipppv]
+        leglist = ['exact $x_{1,0}$, $\dot x_{1,0}$',
+                   'perturbed  $\dot x_{1,0}$',
+                   'perturbed  $x_{1,0}$',
+                   'perturbed  $x_{1,0}$, $\dot x_{1,0}$']
 
-        # # Riccati solution
-        # fbdict, ftdict = fop.solve_opt_ric(A=tA, B=tB, C=tC, tmesh=tmesh,
-        #                                    gamma=gamma, beta=bzero,
-        #                                    fpri=fpri, fdua=fdua, bt=tB.T)
+        def inivinipcheck(inilist, fbd=None, ftd=None, bmo=None):
+            outlist = []
+            for inival in inilist:
+                sysout, inpdict = fop.\
+                    solve_cl_sys(A=tA, B=tB, C=tC, bmo=bmo, f=tf,
+                                 tmesh=tmesh, zini=inival, fbd=fbd, ftd=ftd,
+                                 retaslist=True)
+                outlist.append(sysout)
+            return outlist
 
-        # sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
-        #                                    bmo=1./bzero, f=tf,
-        #                                    tmesh=tmesh, zini=tini,
-        #                                    fbd=fbdict, ftd=ftdict)
-        # direct solution
-        sysout, inpdict = fop.solve_cl_sys(A=tA, B=tB, C=tC,
-                                           bmo=1., f=tf,
-                                           tmesh=tmesh, zini=tini,
-                                           fbd=None, ftd=forcefunc)
+        # Riccati solution
+        fbdict, ftdict = fop.solve_opt_ric(A=tA, B=tB, C=tC, tmesh=tmesh,
+                                           gamma=gamma, beta=bzero,
+                                           fpri=fpri, fdua=fdua, bt=tB.T)
 
-        plu.plot_output(tmesh, sysout, targetsig=trajec, inpdict=inpdict)
+        outlist = inivinipcheck(inilist, fbd=fbdict, ftd=ftdict, bmo=1./bzero)
+
+        ylims = [0., 3.5]
+        cpu.para_plot(tmesh, outlist, leglist=leglist, fignum=4,
+                      xlabel='time $t$', ylabel='trajectory $x_1$',
+                      ylims=ylims,
+                      tikzfile='{0}car_inivpert_Riccati.tikz'.format(ncar),
+                      title=None, legloc='lower right')  # 'Trajektorie')
+
+        # # direct solution
+        outlist = inivinipcheck(inilist, fbd=None, ftd=forcefunc, bmo=1.)
+        cpu.para_plot(tmesh, outlist, leglist=leglist, fignum=3,
+                      xlabel='time $t$', ylabel='trajectory $x_1$',
+                      ylims=ylims,
+                      tikzfile='{0}car_inivpert_direct.tikz'.format(ncar),
+                      title=None, legloc='lower right')  # 'Trajektorie')
 
     if opticheck:
+
         def fone(t):
             return f[0]
 
@@ -145,7 +174,7 @@ if __name__ == '__main__':
         print legl
 
         cpu.para_plot(tmesh, xlist, leglist=legl, fignum=3,
-                      xlabel='Time $t$', ylabel='trajectory $x_3$',
+                      xlabel='time $t$', ylabel='trajectory $x_3$',
                       tikzfile='snapplot_{0}car_trajs.tikz'.format(ncar),
                       title=None)  # 'Trajektorie')
 

@@ -107,10 +107,16 @@ def solve_algric(A=None, R=None, W=None, X0=None,
 
 
 def solve_cl_sys(A=None, B=None, C=None, bmo=None, f=None,
-                 tmesh=None, fbd=None, ftd=None, zini=None):
+                 tmesh=None, fbd=None, ftd=None, zini=None, retaslist=False):
     """solve the (closed loop) forward problem
 
-    by implicit Euler
+    by the implicit trapezoidal rule
+
+    Parameters
+    ---
+    retaslist : boolean, optional
+        whether to return the output as a list, defaults to `False`
+
     """
     t, zc = tmesh[0], zini
     M = np.eye(A.shape[0])
@@ -135,6 +141,9 @@ def solve_cl_sys(A=None, B=None, C=None, bmo=None, f=None,
 
     outdict = {t: np.dot(C, zc)}
     inpdict = {t: _feedthrough(t) + np.dot(_feedbackgain(t), zc)}
+    if retaslist:
+        inplist = [inpdict[t][0][0]]
+        outplist = [outdict[t][0][0]]
 
     for tk, t in enumerate(tmesh[1:]):
         cts = t - tmesh[tk]
@@ -145,7 +154,13 @@ def solve_cl_sys(A=None, B=None, C=None, bmo=None, f=None,
         cmat = M - 0.5*cts*(A + _feedbackgain(t))
         zc = np.linalg.solve(cmat, crhs)
         outdict.update({t: np.dot(C, zc)})
-    return outdict, inpdict
+        if retaslist:
+            inplist.append(inpdict[t][0][0])
+            outplist.append(outdict[t][0][0])
+    if retaslist:
+        return outplist, inplist
+    else:
+        return outdict, inpdict
 
 
 def comp_firstorder_mats(A=None, B=None, C=None, f=None,
