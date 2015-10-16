@@ -9,30 +9,36 @@ import matlibplots.conv_plot_utils as cpu
 # setup of the tests
 opticheck, fbcheck = False, False
 # make it come true
-# opticheck = True
-fbcheck = True
+opticheck = True
+# fbcheck = True
 
 # parameters of the problem
-ncar = 2
+ncar = 3
 
 # parameters of the optimization problem
 tE = 6.
-Nts = 2400
+Nts = 600
 udiril = [True, False]
 bone = 0*1e-12
 gamma = 1.  # 0*1e-3
 trjl = ['pwp', 'atan', 'plnm']
 trgt = trjl[0]
 
+# parameters for the perturbation
+peps = 0.  # 3
+veps = 0.  # 3
+
 # parameters of the target funcs
 g0, gf = 0.5, 2.5
-trnsarea = 1.  # size of the transition area in the pwl
+trnsarea = 3.  # size of the transition area in the pwl
 polydeg = 9
 tanpa = 8
+tmesh = pbd.get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
+trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
+                        trnsarea=trnsarea, tanpa=tanpa)
+dtrajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
+                         trnsarea=trnsarea, tanpa=tanpa, retderivs=True)
 
-# parameters for the perturbation
-peps = 0.3
-veps = 0.3
 
 # parameters of the system
 if ncar == 2:
@@ -42,6 +48,14 @@ if ncar == 2:
                       printmats=True)
     defprbdict = dict(posini=np.array([[0.5], [0]]),
                       velini=np.array([[0.], [0.]]))
+
+    # THE solution
+    mvec, kvec = defsysdict['mvec'], defsysdict['kvec']
+
+    def forcefunc(t):
+        return ((mvec[0]*mvec[1])/kvec[0]*dtrajec(t)[2] +
+                (mvec[0]+mvec[1])*dtrajec(t)[1])
+
 elif ncar == 3:
     defsysdict = dict(mvec=np.array([1., 1., 2.]),
                       dvec=np.array([0.5, 0.5]),
@@ -49,17 +63,28 @@ elif ncar == 3:
                       printmats=True)
     defprbdict = dict(posini=np.array([[0.5], [0], [-0.5]]),
                       velini=np.array([[0.], [0.], [0.]]))
+
+    # THE solution
+    mvec, kvec = defsysdict['mvec'], defsysdict['kvec']
+    m1, m2, m3 = mvec[0], mvec[1], mvec[2]
+    k1, k2 = kvec[0], kvec[1]
+
+    def forcefunc(t):
+        return ((m1*m2*m3)/(k1*k2)*dtrajec(t)[3] +
+                (m3*(m1+m2)/k2 + m1*(m2+m3)/k1)*dtrajec(t)[2] +
+                (m1+m2+m3)*dtrajec(t)[1])
+
 else:
     raise NotImplementedError('only 2 or 3 cars')
+
+# THE solution as a vector
+fvec = np.zeros(tmesh.shape)
+for k, tc in enumerate(tmesh.tolist()):
+    fvec[k] = forcefunc(tc)
 
 A, B, C, f = pbd.get_abcf(**defsysdict)
 tA, tB, tC, tf, tini = fop.comp_firstorder_mats(A=A, B=B, C=C, f=f,
                                                 **defprbdict)
-
-tmesh = pbd.get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
-
-trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
-                        trnsarea=trnsarea, tanpa=tanpa)
 
 gvec = np.zeros(tmesh.shape)
 for k, tc in enumerate(tmesh.tolist()):
@@ -73,17 +98,7 @@ def fpri(t):
 def fdua(t):
     return np.dot(tC.T, trajec(t))
 
-dtrajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
-                         trnsarea=trnsarea, tanpa=tanpa, retderivs=True)
-
 # TODO: exact solution for 3 (or more) cars
-fvec = np.zeros(tmesh.shape)
-for k, tc in enumerate(tmesh.tolist()):
-    fvec[k] = 2./defsysdict['kvec'][0]*dtrajec(tc)[2] + 1*dtrajec(tc)[1]
-
-
-def forcefunc(t):
-    return 2./defsysdict['kvec'][0]*dtrajec(t)[2] + 3*dtrajec(t)[1]
 
 if __name__ == '__main__':
     bzerl = [10**(-x) for x in np.arange(5, 10, 2)]  # [10**(-7)]
@@ -97,7 +112,7 @@ if __name__ == '__main__':
         tinipv[ncar] = tini[ncar] + veps
         tinipppv[0] = tini[0] + peps
         tinipppv[ncar] = tini[ncar] + veps
-        inilist = [tini, tinipv, tinipp, tinipppv]
+        inilist = [tini]  # , tinipv, tinipp, tinipppv]
         leglist = ['exact $x_{1,0}$, $\dot x_{1,0}$',
                    'perturbed  $\dot x_{1,0}$',
                    'perturbed  $x_{1,0}$',
@@ -148,7 +163,7 @@ if __name__ == '__main__':
 
         if ncar == 2:
             flist = [fone, ftwo]
-        if ncar == 3:
+        elif ncar == 3:
             flist = [fone, ftwo, fthr]
         else:
             raise NotImplementedError('only 2 or 3 cars')
