@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.optimize as sco
 
+import probdefs as pbd
+
 
 def overheadmodel(J=None, m=None, mt=None, r=1.):
     """ provide the model of the overhead crane
@@ -27,21 +29,21 @@ def overheadmodel(J=None, m=None, mt=None, r=1.):
     ovhdcrn = overheadmodel(J=1., m=1., mt=1., r=1.)
     """
 
-    mmat = np.diag([mt, J, m, m])
+    mmat = np.diag([mt, J/r**2, m, m])
 
     # state: x = [s, beta, xd, zd].T
 
     amat = np.zeros((4, 4))
-    bmat = np.array([[1, 0], [0, 1], [0, 0], [0, 0]])
+    bmat = np.array([[1, 0], [0, 1./r], [0, 0], [0, 0]])
     cmat = np.array([[0, 0, 1, 0], [0, 0, 0, 1]])
 
-    rhs = np.array([[0, 0, 0, m*9.81]]).T
+    rhs = np.array([[0, 0, 0, -m*9.81]]).T
 
     def holoc(x=None):
-        return (x[2] - x[0])**2 + x[3]**2 - (r*x[1])**2
+        return (x[2] - x[0])**2 + x[3]**2 - x[1]**2
 
     def holojaco(x):
-        return 2*np.array([[x[0]-x[2], -r**2*x[1], x[2]-x[0], x[3]]])
+        return 2*np.array([[-(x[2]-x[0]), -x[1], x[2]-x[0], x[3]]])
 
     ovhdcrn = dict(mmat=mmat, amat=amat, bmat=bmat, cmat=cmat,
                    rhs=rhs, holoc=holoc, holojaco=holojaco)
@@ -64,8 +66,8 @@ def int_impeul_ggl(mmat=None, amat=None, rhs=None, holoc=None, holojaco=None,
         qcur = xvpq[-1:]
         cgholo = holojaco(xcur)
         resone = 1./dt*np.dot(mmat, xcur-xold) - np.dot(mmat, vcur) \
-            - np.dot(cgholo.T, qcur)
-        restwo = 1./dt*np.dot(mmat, vcur-vold) - np.dot(cgholo.T, pcur) \
+            + np.dot(cgholo.T, qcur)
+        restwo = 1./dt*np.dot(mmat, vcur-vold) + np.dot(cgholo.T, pcur) \
             - rhs.flatten()
         resthr = holoc(xcur)
         resfou = np.dot(cgholo, vcur)
@@ -97,15 +99,33 @@ def int_impeul_ggl(mmat=None, amat=None, rhs=None, holoc=None, holojaco=None,
 
     return ylist
 
-
 if __name__ == '__main__':
+    tE, Nts = 3., 3000
+    # defining the target trajectory and the exact solution
+    gm0 = np.array([[0., 4.]]).T
+    gmf = np.array([[1., 5.]]).T
+
+    scalarg = pbd.get_trajec('pwp', tE=tE, g0=1., gf=1.,
+                             trnsarea=tE, polydeg=9, retderivs=True)
+
+    def trgttrj(t, retderivs=False):
+        sclrgt = scalarg(t)
+        if retderivs:
+            return (gm0 - sclrgt[0]*(gmf - gm0),
+                    gm0 - sclrgt[1]*(gmf - gm0),
+                    gm0 - sclrgt[2]*(gmf - gm0),
+                    gm0 - sclrgt[3]*(gmf - gm0))
+        else:
+            return gm0 - sclrgt[0]*(gmf - gm0)
+
     tmesh = np.linspace(0, 0.1, 100).tolist()
-    inix = np.array([[1, 1, 1, 1]]).T
+    inix = np.array([[0, 5, 3, -4]]).T
     iniv = np.array([[0., 0., 0., 0.]]).T
 
     def inpu(t):
-        return np.array([[1, 1]]).T
+        return 0*np.array([[1, 0]]).T
 
     ovhdcrn = overheadmodel(J=1., m=1., mt=1., r=1.)
+    ovhdcrn.update(dict(cmat=None))
     xlist = int_impeul_ggl(inix=inix, iniv=iniv, inpfun=inpu, tmesh=tmesh,
                            **ovhdcrn)
