@@ -16,8 +16,8 @@ opticheck = True
 ncar = 3
 
 # parameters of the optimization problem
-tE = 6.
-Nts = 600
+tE = 4.
+Nts = 400
 udiril = [True, False]
 bone = 0*1e-12
 gamma = 1.  # 0*1e-3
@@ -25,19 +25,19 @@ trjl = ['pwp', 'atan', 'plnm']
 trgt = trjl[0]
 
 # parameters for the perturbation
-peps = 0.  # 3
-veps = 0.  # 3
+peps = 0.3
+veps = 0.3
 
 # parameters of the target funcs
 g0, gf = 0.5, 2.5
-trnsarea = 3.  # size of the transition area in the pwl
-polydeg = 9
-tanpa = 8
+trnsarea = 2.  # size of the transition area in the pwl
+polydeg = 13
+tanpa = 6
 tmesh = pbd.get_tint(0.0, tE, Nts, sqzmesh=False, plotmesh=False)
 trajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
                         trnsarea=trnsarea, tanpa=tanpa)
 dtrajec = pbd.get_trajec(trgt,  tE=tE, g0=g0, gf=gf, polydeg=polydeg,
-                         trnsarea=trnsarea, tanpa=tanpa, retderivs=True)
+                         trnsarea=trnsarea, tanpa=tanpa, retdts_even=True)
 
 
 # parameters of the system
@@ -102,7 +102,7 @@ def fdua(t):
 
 if __name__ == '__main__':
     bzerl = [10**(-x) for x in np.arange(5, 10, 2)]  # [10**(-7)]
-    legl = ['$\\beta_0 = {0}$'.format(bz) for bz in bzerl]
+    legl = ['$\\beta = {0}\\quad$ '.format(bz) for bz in bzerl]
     bzero = 1e-9
 
     if fbcheck:
@@ -112,10 +112,10 @@ if __name__ == '__main__':
         tinipv[ncar] = tini[ncar] + veps
         tinipppv[0] = tini[0] + peps
         tinipppv[ncar] = tini[ncar] + veps
-        inilist = [tini]  # , tinipv, tinipp, tinipppv]
-        leglist = ['exact $x_{1,0}$, $\dot x_{1,0}$',
-                   'perturbed  $\dot x_{1,0}$',
-                   'perturbed  $x_{1,0}$',
+        inilist = [tini, tinipv, tinipp, tinipppv]
+        leglist = ['exact $x_{1,0}$, $\dot x_{1,0}~$',
+                   'perturbed  $\dot x_{1,0}~$',
+                   'perturbed  $x_{1,0}~$',
                    'perturbed  $x_{1,0}$, $\dot x_{1,0}$']
 
         def inivinipcheck(inilist, fbd=None, ftd=None, bmo=None):
@@ -185,11 +185,11 @@ if __name__ == '__main__':
 
         ulist.insert(0, fvec)
         xlist.insert(0, gvec)
-        legl.insert(0, 'exact')  # Exakte L\\"osung')
+        legl.insert(0, 'exact$\\quad$')  # Exakte L\\"osung')
         print legl
 
         cpu.para_plot(tmesh, xlist, leglist=legl, fignum=3,
-                      xlabel='time $t$', ylabel='trajectory $x_3$',
+                      xlabel='time $t$', ylabel='trajectory $x_1$',
                       tikzfile='snapplot_{0}car_trajs.tikz'.format(ncar),
                       title=None)  # 'Trajektorie')
 

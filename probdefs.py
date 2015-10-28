@@ -76,7 +76,7 @@ def get_abcf(kvec=None, mvec=None, dvec=None, N=None, printmats=False):
 
 def get_trajec(trgt, tE=None, g0=None, gf=None,
                trnsarea=None, tanpa=None, tM=None,
-               polydeg=None, retderivs=False):
+               polydeg=None, retdts_even=False, retdts_all=False):
     '''
 
     Returns
@@ -127,19 +127,42 @@ def get_trajec(trgt, tE=None, g0=None, gf=None,
                 elif polydeg == 9:
                     g = g0 + (126*s**5 - 420*s**6 + 540*s**7 -
                               315*s**8 + 70*s**9)*(gf - g0)
+                    dog = (5*126*s**4 - 6*420*s**5 + 7*540*s**6 -
+                           8*315*s**7 + 9*70*s**8)*(gf - g0)*dsdt
                     ddg = (4*5*126*s**3 - 5*6*420*s**4 + 6*7*540*s**5 -
                            7*8*315*s**6 + 8*9*70*s**7)*(gf - g0)*dsdt**2
+                    dtg = (3*4*5*126*s**2 - 4*5*6*420*s**3 + 5*6*7*540*s**4 -
+                           6*7*8*315*s**5 + 7*8*9*70*s**6)*(gf - g0)*dsdt**3
                     dfg = (2*3*4*5*126*s - 3*4*5*6*420*s**2 +
                            4*5*6*7*540*s**3 - 5*6*7*8*315*s**4 +
                            6*7*8*9*70*s**5)*(gf - g0)*dsdt**4
                     dsg = (- 1*2*3*4*5*6*420*1 +
                            2*3*4*5*6*7*540*s - 3*4*5*6*7*8*315*s**2 +
                            4*5*6*7*8*9*70*s**3)*(gf - g0)*dsdt**6
+                elif polydeg == 13:
+                    g = g0 + (1716*s**7 - 9009*s**8 + 20020*s**9
+                              - 24024*s**10 + 16380*s**11
+                              - 6006*s**12 + 924*s**13)*(gf - g0)
+                    ddg = (6*7*1716*s**5 - 7*8*9009*s**6
+                           + 8*9*20020*s**7 - 9*10*24024*s**8
+                           + 10*11*16380*s**9 - 11*12*6006*s**10
+                           + 12*13*924*s**11)*dsdt**2*(gf - g0)
+                    dfg = (4*5*6*7*1716*s**3 - 5*6*7*8*9009*s**4
+                           + 6*7*8*9*20020*s**5 - 7*8*9*10*24024*s**6
+                           + 8*9*10*11*16380*s**7 - 9*10*11*12*6006*s**8
+                           + 10*11*12*13*924*s**9)*dsdt**4*(gf - g0)
+                    dsg = (2*3*4*5*6*7*1716*s**1 - 3*4*5*6*7*8*9009*s**2
+                           + 4*5*6*7*8*9*20020*s**3 - 5*6*7*8*9*10*24024*s**4
+                           + 6*7*8*9*10*11*16380*s**5
+                           - 7*8*9*10*11*12*6006*s**6
+                           + 8*9*10*11*12*13*924*s**7)*dsdt**6*(gf - g0)
 
                 else:
                     raise Warning('polydeg needs be defined')
-            if retderivs:
+            if retdts_even:
                 return g, ddg, dfg, dsg
+            if retdts_all:
+                return g, dog, ddg, dtg, dfg
             else:
                 return g
 
