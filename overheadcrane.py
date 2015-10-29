@@ -76,7 +76,7 @@ if __name__ == '__main__':
     r, gravity = modpardict['r'], modpardict['gravity']
     # the data of the problem
     ovhdcrn = ocu.overheadmodel(**modpardict)
-    exatinp = ocu.get_exatinp(**modpardict)
+    exatinp = ocu.get_exatinp(scalarg=scalarg, gm0=gm0, gmf=gmf, **modpardict)
 
     uflist, umlist = [], []
     for tk in tmesh:
