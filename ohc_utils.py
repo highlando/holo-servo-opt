@@ -44,7 +44,8 @@ def overheadmodel(J=None, m=None, mt=None, r=None, gravity=9.81):
         return (x[2] - x[0])**2 + x[3]**2 - (r*x[1])**2
 
     def holojaco(x):
-        return 2*np.array([[-(x[2]-x[0]), -r**2*x[1], x[2]-x[0], x[3]]])
+        return 2*np.array([[-(x[2]-x[0]), -r**2*x[1], x[2]-x[0], x[3]]]).\
+            reshape((1, x.size))
 
     ovhdcrn = dict(mmat=mmat, amat=amat, bmat=bmat, cmat=cmat,
                    rhs=rhs, holoc=holoc, holojaco=holojaco)
