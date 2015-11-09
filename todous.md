@@ -1,3 +1,9 @@
+do the linearization
+---
+ * at x- , i.e., time depencies 
+ * add holonomic constraints
+ * to elim or not to elim the control
+
 debug the backwardsweep
 ---
 

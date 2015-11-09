@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.linalg as npla
+import scipy.sparse as sps
 
 
 def disc_cent_diffs(tmesh):
@@ -138,6 +139,48 @@ def fd_fullsys(A=None, B=None, C=None, flist=None, g=None,
 
     sol = npla.solve(coeff, rhs)
     return sol
+
+
+def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
+                        getgmat=None, getamat=None, xini=None, vini=None,
+                        xrhs=None):
+    ''' model structure
+    Mx'' = Ax - G.Tp + Bu + rhs
+       0 = Gx
+    with A, G, rhs time-varying
+    '''
+
+    diffmat = disc_cent_diffs(tmesh)
+    spdfm = sps.csc_matrix(diffmat)
+    tdmasmat = sps.kron(spdfm, mmat)
+
+    intmesh = tmesh[1:-1]
+    adiag, gdiag, rhslist = [], [], []
+    for curt in intmesh:
+        adiag.append(getamat(curt))
+        gdiag.append(getgmat(curt))
+        rhslist.append(np.dot(bmat, inpufun(curt)) + xrhs(curt))
+    tdamat = sps.block_diag(adiag)
+    tdgmat = sps.block_diag(gdiag)
+    tdrhs = np.vstack([rhslist])
+
+    nx = amat.shape[0]
+    nu = bmat.shape[1]
+
+    xxz = np.zeros((nx*nint, nx*(nint+2)))
+    xuz = np.zeros((nx*nint, nu*(nint+2)))
+    uxz = np.zeros((nu*nint, nx*(nint+2)))
+
+    xleye = np.eye(nx)
+    ueye = np.eye(nu)
+    diffxl = np.kron(xleye, diffmat)
+    diffu = np.kron(ueye, diffmat)
+    xdiff = np.hstack([xxz, diffxl, xuz])
+    ldiff = np.hstack([diffxl, xxz, xuz])
+    udiff = np.hstack([uxz, uxz, bone*diffu])
+    bigdiff = np.vstack([xdiff, ldiff, udiff])
+
+
 
 if __name__ == '__main__':
     # tmesh = np.array([0., 0.1, 0.3, 0.4, 0.8, 0.9, 1.]).reshape((7, 1))
