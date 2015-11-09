@@ -61,7 +61,7 @@ def trgttrj(t, scalarg=None, gm0=None, gmf=None, retdts_all=True):
                 + sclrgt[3]*(gmf - gm0),
                 + sclrgt[4]*(gmf - gm0))
     else:
-        return gm0 - sclrgt[0]*(gmf - gm0)
+        return gm0 + sclrgt[0]*(gmf - gm0)
 
 
 def get_exatinp(scalarg=None, gm0=None, gmf=None,
@@ -89,6 +89,7 @@ def get_exatinp(scalarg=None, gm0=None, gmf=None,
                     r**2*alpha**2 + (d1g1-tt)*d1g1 + d1g2**2)/(r**2*bt)
             return th, lmbd, halp, bt, s, g1
         th, lmbd, halp, bt, s, g1 = _auxvals(t)
+        # print 't={0}, lmbda={1}'.format(t, lmbd)
         uF = mt*th + 2*(s-g1)*lmbd
         uM = J*halp - 2*r**2*bt*lmbd
 
