@@ -1,5 +1,7 @@
 import numpy as np
 import scipy.linalg as spla
+import scipy.sparse as sps
+import scipy.sparse.linalg as spsla
 import matplotlib.pyplot as plt
 
 
@@ -191,3 +193,129 @@ def comp_firstorder_mats(A=None, B=None, C=None, f=None,
     tini = np.vstack([posini, velini])
 
     return tA, tB, tC, tf, tini
+
+
+def get_forwarddiff(tmesh):
+    try:
+        N = tmesh.size
+    except AttributeError:
+        N = len(tmesh)
+    # define the discrete difference matrix
+    try:
+        hvec = tmesh[1:] - tmesh[:-1]
+    except TypeError:
+        hvec = np.atleast_2d(np.array(tmesh[1:]) - np.array(tmesh[:-1])).T
+    bigeye = np.eye(N, N)
+    return (bigeye[1:, :] - bigeye[:-1, :])/hvec
+
+
+def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
+                        getgmat=None, getdgmat=None, getamat=None,
+                        xini=None, vini=None,
+                        xrhs=None, nr=None):
+    ''' model structure
+    Mx' = Mv - G.Tq - DG.Tp
+    Mv' = Ax - G.Tp + Bu + rhs
+       0 = Gx
+       0 = DGx + Gv
+    with A, G, rhs time-varying
+    '''
+
+    nx = xini.size
+    ntp = len(tmesh)
+    intmesh = tmesh[1:]
+    ntpi = len(intmesh)
+    tsiinv = 1./(tmesh[1] - tmesh[0])
+
+    diffmat = get_forwarddiff(tmesh)
+    spdfm = sps.csc_matrix(diffmat)
+    diffm = sps.kron(spdfm, mmat)
+    tdmmat = sps.kron(sps.eye(ntpi), mmat)
+
+    def _zspm(nl, nc):
+        return sps.csc_matrix((nl, nc))
+
+    adiag, gdiag, dgdiag, rhslist = [], [], [], []
+    for curt in intmesh:
+        adiag.append(sps.csc_matrix(getamat(curt)))
+        gdiag.append(getgmat(curt))
+        dgdiag.append(getdgmat(curt))
+        rhslist.append((bmat.dot(inpufun(curt)) + xrhs(curt)).reshape((nx, )))
+
+    tdamat = sps.block_diag(adiag)
+
+    tdgmat = sps.block_diag(gdiag)
+    dtdgmat = sps.block_diag(dgdiag)
+    tdrhs = np.hstack([rhslist]).reshape((ntpi*nx, 1))
+
+    """ what the coeffmat will look like:
+
+    dims        nx   ntp-1*nx   nx      ntp-1*nx    ntp-1*nr ntp-1*nr
+               -------------------------
+             |
+    nx       |  inixm   0       0       0           0       0
+    nx       |  0       0       iniv    0           0       0
+    ntp-1*nx |  --diff_M--      0       -M          G.T     dG.T
+    ntp-1*nx |  0       -A      --diff_M--          0       G.T
+    ntp-1*nr |  0       G       0       0           0       0
+    ntp-1*nr |  0       dG      0       G           0       0
+
+    *
+
+    coeffvec
+    [x0     x   v0  v   q   p].T
+    """
+
+    inixmat = sps.hstack([sps.eye(nx), _zspm(nx, (2*ntp-1)*nx+2*ntpi*nr)])
+    inivmat = tsiinv*sps.hstack([_zspm(nx, ntp*nx), sps.eye(nx),
+                                 _zspm(nx, ntpi*(nx+2*nr))])
+    coefmatdx = sps.hstack([diffm, _zspm(ntpi*nx, nx), -tdmmat,
+                            tdgmat.T, dtdgmat.T])
+    coefmatdv = sps.hstack([_zspm(ntpi*nx, nx), -tdamat, diffm,
+                            _zspm(ntpi*nx, ntpi*nr), tdgmat.T])
+    coefmatg = sps.hstack([_zspm(ntpi*nr, nx), tdgmat,
+                           _zspm(ntpi*nr, nx+ntpi*(nx+2*nr))])
+    coefmatdg = sps.hstack([_zspm(ntpi*nr, nx), dtdgmat, _zspm(ntpi*nr, nx),
+                            tdgmat, _zspm(ntpi*nr, ntpi*2*nr)])
+
+    coefmat = sps.vstack([inixmat, inivmat, coefmatdx,
+                          coefmatdv, coefmatg, coefmatdg]).tocsc()
+    rhsx = np.vstack([xini, vini, np.zeros((ntpi*nx, 1)), tdrhs,
+                      np.zeros((2*ntpi*nr, 1))])
+
+    # ucomat = coefmat[:ntp*nx, :][:, :ntp*nx]
+    # gmat = coefmat[ntp*nx:, :][:, :ntp*nx]
+    # tgmat = coefmat[:ntp*nx, :][:, ntp*nx:]
+    # ucomati = np.linalg.inv(ucomat.todense())
+    # scc = gmat*(tgmat.T*ucomati.T).T
+    # print np.linalg.cond(scc)
+    # print np.linalg.cond(ucomat.todense())
+    # print np.linalg.cond(coefmat.todense())
+
+    # import matplotlib.pyplot as plt
+    # plt.figure(11)
+    # plt.spy(ucomat)
+    # plt.figure(12)
+    # plt.spy(gmat)
+    # plt.figure(13)
+    # plt.spy(tgmat)
+    # # plt.figure(1)
+    # # plt.spy(inixmat)
+    # # plt.figure(2)
+    # # plt.spy(inivmat)
+    # # plt.figure(3)
+    # # plt.spy(coefmatx)
+    # # plt.figure(4)
+    # # plt.spy(coefmatg)
+    # # plt.figure(5)
+    # # plt.spy(coefmat)
+    # # plt.figure(6)
+    # # plt.spy(tdmasmat)
+    # # plt.figure(7)
+    # # plt.spy(tdamat)
+    # plt.show(block=False)
+    # # raise Warning('TODO: debug')
+
+    tdsol = spsla.spsolve(coefmat, rhsx)
+
+    return tdsol
