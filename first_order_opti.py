@@ -5,6 +5,15 @@ import scipy.sparse.linalg as spsla
 import matplotlib.pyplot as plt
 
 
+__all__ = ['solve_opt_ric',
+           'solve_fbft',
+           'solve_algric',
+           'solve_cl_sys',
+           'comp_firstorder_mats',
+           'get_forwarddiff',
+           'ltv_holo_tpbvfindif']
+
+
 def solve_opt_ric(A=None, beta=None, B=None, C=None, gamma=None,
                   fpri=None, fdua=None, bt=None, tmesh=None):
     bbt = 1./beta*np.dot(B, B.T)
@@ -210,9 +219,9 @@ def get_forwarddiff(tmesh):
 
 
 def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
-                        getgmat=None, getdgmat=None, getamat=None,
-                        xini=None, vini=None,
-                        xrhs=None, nr=None):
+                        getgmat=None, getdgmat=None, getamat=None, vold=None,
+                        dxini=None, dvini=None,
+                        xrhs=None, grhs=None, dgrhs=None, nr=None):
     ''' model structure
     Mx' = Mv - G.Tq - DG.Tp
     Mv' = Ax - G.Tp + Bu + rhs
@@ -221,7 +230,7 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
     with A, G, rhs time-varying
     '''
 
-    nx = xini.size
+    nx = dxini.size
     ntp = len(tmesh)
     intmesh = tmesh[1:]
     ntpi = len(intmesh)
@@ -235,18 +244,24 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
     def _zspm(nl, nc):
         return sps.csc_matrix((nl, nc))
 
-    adiag, gdiag, dgdiag, rhslist = [], [], [], []
+    adiag, gdiag, dgdiag = [], [], []
+    xrhsl, grhsl, dgrhsl = [], [], []
+
     for curt in intmesh:
         adiag.append(sps.csc_matrix(getamat(curt)))
         gdiag.append(getgmat(curt))
         dgdiag.append(getdgmat(curt))
-        rhslist.append((bmat.dot(inpufun(curt)) + xrhs(curt)).reshape((nx, )))
+        xrhsl.append((bmat.dot(inpufun(curt)) + xrhs(curt)).reshape((nx, )))
+        grhsl.append(grhs(curt))
+        dgrhsl.append(dgrhs(curt))
 
     tdamat = sps.block_diag(adiag)
 
     tdgmat = sps.block_diag(gdiag)
     dtdgmat = sps.block_diag(dgdiag)
-    tdrhs = np.hstack([rhslist]).reshape((ntpi*nx, 1))
+    tdrhs = np.hstack([xrhsl]).reshape((ntpi*nx, 1))
+    grhs = np.hstack([grhsl]).reshape((ntpi*nr, 1))
+    dgrhs = np.hstack([dgrhsl]).reshape((ntpi*nr, 1))
 
     """ what the coeffmat will look like:
 
@@ -264,6 +279,14 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
 
     coeffvec
     [x0     x   v0  v   q   p].T
+
+    =
+
+    [inix   iniv    0   xrhs    -g(xold)    -G*vold]
+
+    where xres = -diff_M*vold + Ax - G.Tp +Bu
+
+    as it comes from the Newton iteration
     """
 
     inixmat = sps.hstack([sps.eye(nx), _zspm(nx, (2*ntp-1)*nx+2*ntpi*nr)])
@@ -280,8 +303,9 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
 
     coefmat = sps.vstack([inixmat, inivmat, coefmatdx,
                           coefmatdv, coefmatg, coefmatdg]).tocsc()
-    rhsx = np.vstack([xini, vini, np.zeros((ntpi*nx, 1)), tdrhs,
-                      np.zeros((2*ntpi*nr, 1))])
+    rhsx = np.vstack([dxini, dvini, np.zeros((ntpi*nx, 1)), tdrhs,
+                      grhs, dgrhs])
+    # np.zeros((2*ntpi*nr, 1))])
 
     # ucomat = coefmat[:ntp*nx, :][:, :ntp*nx]
     # gmat = coefmat[ntp*nx:, :][:, :ntp*nx]

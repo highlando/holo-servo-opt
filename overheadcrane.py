@@ -46,10 +46,10 @@ def int_impeul_ggl(mmat=None, amat=None, rhs=None, holoc=None, holojaco=None,
         return res
 
     if cmat is not None:
-        ylist = [np.dot(cmat, inix)]
+        ylist = [np.dot(cmat, inix).flatten()]
     else:
-        ylist = [inix]
-        vlist = [iniv]
+        ylist = [inix.flatten()]
+        vlist = [iniv.flatten()]
     xold, vold = inix.flatten(), iniv.flatten()
     xvpqold = np.vstack([inix, iniv, np.array([[0], [0]])])
     ulist, glist = [inpfun(tmesh[0])], [holoc(xold)]
@@ -106,6 +106,86 @@ def bwsweep(tmesh=None, amatfun=None, rhsfun=None, gmatfun=None,
     return ulist
 
 
+def get_pdxdxg(pld=None, amat=None, r=None):
+    def pdxdxg(t):
+        curp = pld[t]
+        if amat is not None:
+            raise NotImplementedError('...')
+        else:
+            return -2*curp*np.array([[1, 0, -1, 0],
+                                     [0, -r**2, 0, 0],
+                                     [-1, 0, 1, 0],
+                                     [0, 0, 0, 1]])
+    return pdxdxg
+
+
+def get_getgmat(xld=None, holojaco=None):
+    def getgmat(t):
+        curx = xld[t].reshape((nx, 1))
+        return holojaco(curx)
+    return getgmat
+
+
+def get_getdgmat(xld=None, vld=None, holohess=None):
+    dxdxtg = 2*np.array([[1, 0, -1, 0],
+                         [0, -r**2, 0, 0],
+                         [-1, 0, 1, 0],
+                         [0, 0, 0, 1]])
+
+    def getdgmat(t):
+        curv = vld[t].reshape((nx, 1))
+        return np.dot(dxdxtg, curv).T
+    return getgmat
+
+
+def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
+    def getdualrhs(t):
+        curx = xld[t].reshape((nx, 1))
+        curey = trgttrj(t)
+        drhs = -np.dot(cmat.T, np.dot(qmat, np.dot(cmat, curx)-curey))
+        return drhs
+    return getdualrhs
+
+
+def get_xresidual(xld=None, pld=None, mddxld=None, nx=None, NP=None,
+                  holojaco=None, sysrhs=None, minusres=False):
+    ''' returns a function that computes  Mx'' + G(x).Tp - f  at time t'''
+
+    def xres(t):
+        curx = xld[t].reshape((nx, 1))
+        curp = pld[t].reshape((NP, 1))
+        xres = mddxld[t].reshape((nx, 1)) + np.dot(holojaco(curx).T, curp) \
+            - sysrhs
+        if minusres:
+            return -xres
+        else:
+            return xres
+
+    return xres
+
+
+def getmddxld(vld=None, mmat=None, tmesh=None):
+    mddxld = {}
+    for k, curt in enumerate(tmesh[1:]):
+        pret = tmesh[k]
+        ctsi = 1./(curt - pret)
+        mddxld.update({curt: ctsi*np.dot(mmat, vld[curt] - vld[pret])})
+
+    return mddxld
+
+
+def get_grhs(xld=None, holoc=None):
+    def grhs(t):
+        return -holoc(xld[t])
+    return grhs
+
+
+def get_dgrhs(xld=None, vld=None, holojaco=None):
+    def dgrhs(t):
+        return -np.dot(holojaco(xld[t]), vld[t])
+    return dgrhs
+
+
 if __name__ == '__main__':
     tE, Nts = 3., 301
     tmesh = np.linspace(0, tE, Nts).tolist()
@@ -113,11 +193,13 @@ if __name__ == '__main__':
     inix = np.array([[0, 40, 0, 4]]).T
     iniv = np.array([[0., 0., 0., 0.]]).T
     nx, ny, nu = inix.size, 2, 2
+    NP = 1
     # initial and final point
     gm0 = np.array([[0., 4.]]).T
-    gmf = np.array([[0., 5.]]).T
+    # gmf = np.array([[1., 5.]]).T
     # gmf = np.array([[0., 4.1]]).T
     # gmf = np.array([[0., 5.]]).T
+    gmf = np.array([[2., 5.]]).T
 
     # scalar morphing function
     scalarg = pbd.get_trajec('pwp', tE=tE, g0=0., gf=1.,
@@ -148,76 +230,53 @@ if __name__ == '__main__':
 
     def keepitconst(t):  # for constant position
         return np.array([[0, -m*gravity*r]]).T
+
     xlist, ulist, plist, vlist = \
         int_impeul_ggl(inix=inix, iniv=iniv,
                        # inpfun=zeroinp,
                        # inpfun=testinp,
                        inpfun=keepitconst,
+                       # inpfun=exatinp,
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
-    # plu.plotxlist(xlist, tmesh=tmesh)
+    # xldz, pldz = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
+    # vldz = dict(zip(tmesh, vlist))
+    xold = np.hstack(xlist).reshape((Nts*nx, 1))
 
-    linsteps = 1
+    linsteps = 5
     for npc in range(linsteps):
         xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
-        vld = dict(zip(tmesh, plist))
-
-        def get_pdxdxg(pld=None, amat=None, r=None):
-            def pdxdxg(t):
-                curp = pld[t]
-                if amat is not None:
-                    raise NotImplementedError('...')
-                else:
-                    return -2*curp*np.array([[1, 0, -1, 0],
-                                             [0, -r**2, 0, 0],
-                                             [-1, 0, 1, 0],
-                                             [0, 0, 0, 1]])
-            return pdxdxg
-
-        def get_getgmat(xld=None, holojaco=None):
-            def getgmat(t):
-                curx = xld[t].reshape((nx, 1))
-                return holojaco(curx)
-            return getgmat
-
-        def get_getdgmat(xld=None, vld=None, holohess=None):
-            dxdxtg = 2*np.array([[1, 0, -1, 0],
-                                 [0, -r**2, 0, 0],
-                                 [-1, 0, 1, 0],
-                                 [0, 0, 0, 1]])
-
-            def getdgmat(t):
-                curv = vld[t].reshape((nx, 1))
-                return np.dot(dxdxtg, curv).T
-            return getgmat
-
-        def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
-            def getdualrhs(t):
-                curx = xld[t].reshape((nx, 1))
-                curey = trgttrj(t)
-                drhs = -np.dot(cmat.T, np.dot(qmat, np.dot(cmat, curx)-curey))
-                return drhs
-            return getdualrhs
-
-        def xrhs(t):
-            return ovhdcrn['rhs']
-
-        def difffopt(t):
-            return exatinp(t) - keepitconst(t)
+        vld = dict(zip(tmesh, vlist))
+        mddxld = getmddxld(vld=vld, mmat=mmat, tmesh=tmesh)
 
         getgmat = get_getgmat(xld=xld, holojaco=ovhdcrn['holojaco'])
         getdgmat = get_getdgmat(vld=vld)
         getpdxdxg = get_pdxdxg(pld=pld, r=r)
 
+        xrhs = get_xresidual(xld=xld, pld=pld, sysrhs=ovhdcrn['rhs'],
+                             holojaco=ovhdcrn['holojaco'], mddxld=mddxld,
+                             minusres=True, nx=nx, NP=NP)
+        grhs = get_grhs(xld=xld, holoc=ovhdcrn['holoc'])
+        dgrhs = get_dgrhs(xld=xld, vld=vld, holojaco=ovhdcrn['holojaco'])
+
+        nr = 1
         xvqplmu = foo.\
             ltv_holo_tpbvfindif(tmesh=tmesh, mmat=mmat, bmat=bmat,
-                                inpufun=difffopt, getgmat=getgmat,
+                                inpufun=exatinp, getgmat=getgmat,
                                 getdgmat=getdgmat,
-                                getamat=getpdxdxg, nr=1,
-                                xini=0*inix, vini=0*iniv, xrhs=xrhs)
+                                getamat=getpdxdxg, nr=nr,
+                                grhs=grhs, dgrhs=dgrhs,
+                                dxini=0*inix, dvini=0*iniv, xrhs=xrhs)
 
         ntp = len(tmesh)
-        x = xvqplmu[:nx*ntp].reshape((ntp, nx))
-        v = xvqplmu[nx*ntp:2*nx*ntp].reshape((ntp, nx))
+        dx = xvqplmu[:nx*ntp].reshape((ntp, nx))
+        dv = xvqplmu[nx*ntp:2*nx*ntp].reshape((ntp, nx))
+        dq = xvqplmu[-2*nr*(ntp-1):-nr*(ntp-1)]
+        dp = xvqplmu[-nr*(ntp-1):]
+        xlist, vlist, plist = [xld[tmesh[0]]], [vld[tmesh[0]]], [pld[tmesh[0]]]
+        for k, curt in enumerate(tmesh[1:]):
+            xlist.append(xld[curt]+dx[k+1, :])
+            vlist.append(vld[curt]+dv[k+1, :])
+            plist.append(pld[curt]+dp[k])
 
         # getpdxdxg = get_pdxdxg(pld=pld, r=r)
         # getgmat = get_getgmat(xld=xld, holojaco=ovhdcrn['holojaco'])
