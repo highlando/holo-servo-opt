@@ -389,40 +389,8 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
                           coefmatdv, coefmatg, coefmatdg]).tocsc()
     rhsx = np.vstack([dxini, dvini, np.zeros((ntpi*nx, 1)), tdrhs,
                       grhs, dgrhs])
-    # np.zeros((2*ntpi*nr, 1))])
-
-    # ucomat = coefmat[:ntp*nx, :][:, :ntp*nx]
-    # gmat = coefmat[ntp*nx:, :][:, :ntp*nx]
-    # tgmat = coefmat[:ntp*nx, :][:, ntp*nx:]
-    # ucomati = np.linalg.inv(ucomat.todense())
-    # scc = gmat*(tgmat.T*ucomati.T).T
-    # print np.linalg.cond(scc)
-    # print np.linalg.cond(ucomat.todense())
-    # print np.linalg.cond(coefmat.todense())
-
-    # import matplotlib.pyplot as plt
-    # plt.figure(11)
-    # plt.spy(ucomat)
-    # plt.figure(12)
-    # plt.spy(gmat)
-    # plt.figure(13)
-    # plt.spy(tgmat)
-    # # plt.figure(1)
-    # # plt.spy(inixmat)
-    # # plt.figure(2)
-    # # plt.spy(inivmat)
-    # # plt.figure(3)
-    # # plt.spy(coefmatx)
-    # # plt.figure(4)
-    # # plt.spy(coefmatg)
-    # # plt.figure(5)
-    # # plt.spy(coefmat)
-    # # plt.figure(6)
-    # # plt.spy(tdmasmat)
-    # # plt.figure(7)
-    # # plt.spy(tdamat)
-    # plt.show(block=False)
 
     tdsol = spsla.spsolve(coefmat, rhsx)
+    # raise Warning('TODO: debug')
 
     return tdsol

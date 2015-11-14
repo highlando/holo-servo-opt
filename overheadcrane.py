@@ -178,19 +178,18 @@ def getmddxld(vld=None, mmat=None, tmesh=None):
 
 def get_grhs(xld=None, holoc=None, holojaco=None):
     def grhs(t):
-        return -(holoc(xld[t])+np.dot(holojaco(xld[t]), vld[t]))
+        return -(holoc(xld[t])-np.dot(holojaco(xld[t]), xld[t]))
     return grhs
 
 
 def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
     def dgrhs(t):
-        return -(np.dot(holojaco(xld[t]), vld[t])
-                 + np.dot(np.dot(vld[t].T, holohess(xld[t])), xld[t]))
+        return -(-np.dot(np.dot(vld[t].T, holohess(xld[t])), xld[t]))
     return dgrhs
 
 
 if __name__ == '__main__':
-    tE, Nts = 1., 11
+    tE, Nts = 3., 301
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -244,7 +243,7 @@ if __name__ == '__main__':
     # vldz = dict(zip(tmesh, vlist))
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
 
-    linsteps = 5
+    linsteps = 3
     for npc in range(linsteps):
         xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
         vld = dict(zip(tmesh, vlist))
@@ -264,6 +263,9 @@ if __name__ == '__main__':
         dgrhs = get_dgrhs(xld=xld, vld=vld, holojaco=ovhdcrn['holojaco'],
                           holohess=ovhdcrn['holohess'])
 
+        def fwdrhs(t):
+            return nwtncorr(t)+ovhdcrn['rhs']
+
         nr = 1
         xvqplmu = foo.\
             ltv_holo_tpbvfindif(tmesh=tmesh, mmat=mmat, bmat=bmat,
@@ -271,7 +273,7 @@ if __name__ == '__main__':
                                 getdgmat=getdgmat,
                                 getamat=getpdxdxg, nr=nr,
                                 grhs=grhs, dgrhs=dgrhs,
-                                dxini=inix, dvini=iniv, xrhs=nwtncorr)
+                                dxini=inix, dvini=iniv, xrhs=fwdrhs)
 
         ntp = len(tmesh)
         dx = xvqplmu[:nx*ntp].reshape((ntp, nx))
@@ -283,39 +285,3 @@ if __name__ == '__main__':
             xlist.append(dx[k+1, :])
             vlist.append(dv[k+1, :])
             plist.append(dp[k])
-
-        # getpdxdxg = get_pdxdxg(pld=pld, r=r)
-        # getgmat = get_getgmat(xld=xld, holojaco=ovhdcrn['holojaco'])
-
-        # getdualrhs = get_getdualrhs(cmat=cmat, qmat=qmat,
-        #                             trgttrj=ystar, xld=xld)
-        # tbmatt = rmatinv.dot(bmat.T)
-        # terml = np.zeros((nx, 1))
-        # gettermld = get_getdualrhs(cmat=cmat, qmat=smat,
-        #                            trgttrj=ystar, xld=xld)
-        # termld = -np.linalg.solve(mmat, gettermld(tmesh[-1]))
-
-        # # tend = tmesh[-1]
-        # # print xld[tend]
-        # # print ystar(tend)
-        # # ## make the terminal value consistent
-        # curG = getgmat(tmesh[-1])
-        # minvGt = np.dot(minv, curG.T)
-        # csc = np.dot(curG, minvGt)
-        # prjtermld = termld - \
-        #     np.dot(minvGt, np.linalg.solve(csc, np.dot(curG, termld)))
-        # # raise Warning('TODO: debug')
-
-        # ulstt = bwsweep(tmesh=tmesh, amatfun=getbwamat, rhsfun=getdualrhs,
-        #                 gmatfun=getgmat, mmat=mmat,
-        #                 terml=terml, termld=prjtermld, outputmat=tbmatt)
-        # uld = dict(zip(tmesh, ulstt))
-
-        # def curinp(t):
-        #     return uld[t].reshape((2, 1)) + keepitconst(t)
-
-        # xlist, curulist, plist = \
-        #     int_impeul_ggl(inix=inix, iniv=iniv,
-        #                    # inpfun=testinp,
-        #                    inpfun=curinp,
-        #                    tmesh=tmesh, **ovhdcrn)
