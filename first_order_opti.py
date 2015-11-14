@@ -11,6 +11,7 @@ __all__ = ['solve_opt_ric',
            'solve_cl_sys',
            'comp_firstorder_mats',
            'get_forwarddiff',
+           'ltvggl_bwprobmats',
            'ltv_holo_tpbvfindif']
 
 
@@ -321,7 +322,6 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
 
     diffmat = get_forwarddiff(tmesh)
     spdfm = sps.csc_matrix(diffmat)
-    raise Warning('TODO: debug')
     diffm = sps.kron(spdfm, mmat)
     tdmmat = sps.kron(sps.eye(ntpi), mmat)
 
@@ -422,7 +422,6 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
     # # plt.figure(7)
     # # plt.spy(tdamat)
     # plt.show(block=False)
-    # # raise Warning('TODO: debug')
 
     tdsol = spsla.spsolve(coefmat, rhsx)
 

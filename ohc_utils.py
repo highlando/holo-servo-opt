@@ -24,6 +24,7 @@ def overheadmodel(J=None, m=None, mt=None, r=None, gravity=9.81):
          * `bmat`: the input matrix
          * `holoc`: callable `g(x)` ret. the value of the constraint at `x`
          * `holojaco`: callable `G(x)` returning the Jacobi matrix at `x`
+         * `holohess`: callable `H(x)` returning the Hessian matrix at `x`
 
     Examples
     ---
@@ -47,8 +48,14 @@ def overheadmodel(J=None, m=None, mt=None, r=None, gravity=9.81):
         return 2*np.array([[-(x[2]-x[0]), -r**2*x[1], x[2]-x[0], x[3]]]).\
             reshape((1, x.size))
 
+    def holohess(x):
+        return 2*np.array([[1, 0, -1, 0],
+                           [0, -r**2, 0, 0],
+                           [-1, 0, 1, 0],
+                           [0, 0, 0, 1]])
+
     ovhdcrn = dict(mmat=mmat, amat=amat, bmat=bmat, cmat=cmat,
-                   rhs=rhs, holoc=holoc, holojaco=holojaco)
+                   rhs=rhs, holoc=holoc, holojaco=holojaco, holohess=holohess)
     return ovhdcrn
 
 

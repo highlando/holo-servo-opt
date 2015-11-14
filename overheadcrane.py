@@ -21,7 +21,7 @@ g(x) = 0
 
 def int_impeul_ggl(mmat=None, amat=None, rhs=None, holoc=None, holojaco=None,
                    bmat=None, inpfun=None, cmat=None,
-                   inix=None, iniv=None, tmesh=None, retvlist=False):
+                   inix=None, iniv=None, tmesh=None, retvlist=False, **kwargs):
     """ integrate mbs with holonomic constraints using imp euler
 
     and the Gear-Gupta-Leimkuhler Index-2 formulation"""
@@ -127,15 +127,11 @@ def get_getgmat(xld=None, holojaco=None):
 
 
 def get_getdgmat(xld=None, vld=None, holohess=None):
-    dxdxtg = 2*np.array([[1, 0, -1, 0],
-                         [0, -r**2, 0, 0],
-                         [-1, 0, 1, 0],
-                         [0, 0, 0, 1]])
-
     def getdgmat(t):
+        dxdxtg = holohess(xld[t])
         curv = vld[t].reshape((nx, 1))
         return np.dot(dxdxtg, curv).T
-    return getgmat
+    return getdgmat
 
 
 def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
@@ -164,6 +160,12 @@ def get_xresidual(xld=None, pld=None, mddxld=None, nx=None, NP=None,
     return xres
 
 
+def get_nwtncorr(xld=None, pld=None, holojaco=None, nx=None):
+    def nwtncorr(t):
+        return np.dot(holojaco(xld[t]).T, pld[t]).reshape((nx, 1))
+    return nwtncorr
+
+
 def getmddxld(vld=None, mmat=None, tmesh=None):
     mddxld = {}
     for k, curt in enumerate(tmesh[1:]):
@@ -174,15 +176,16 @@ def getmddxld(vld=None, mmat=None, tmesh=None):
     return mddxld
 
 
-def get_grhs(xld=None, holoc=None):
+def get_grhs(xld=None, holoc=None, holojaco=None):
     def grhs(t):
-        return -holoc(xld[t])
+        return -(holoc(xld[t])+np.dot(holojaco(xld[t]), vld[t]))
     return grhs
 
 
-def get_dgrhs(xld=None, vld=None, holojaco=None):
+def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
     def dgrhs(t):
-        return -np.dot(holojaco(xld[t]), vld[t])
+        return -(np.dot(holojaco(xld[t]), vld[t])
+                 + np.dot(np.dot(vld[t].T, holohess(xld[t])), xld[t]))
     return dgrhs
 
 
@@ -199,7 +202,7 @@ if __name__ == '__main__':
     # gmf = np.array([[1., 5.]]).T
     # gmf = np.array([[0., 4.1]]).T
     # gmf = np.array([[0., 5.]]).T
-    gmf = np.array([[2., 5.]]).T
+    gmf = np.array([[1., 5.]]).T
 
     # scalar morphing function
     scalarg = pbd.get_trajec('pwp', tE=tE, g0=0., gf=1.,
@@ -248,14 +251,18 @@ if __name__ == '__main__':
         mddxld = getmddxld(vld=vld, mmat=mmat, tmesh=tmesh)
 
         getgmat = get_getgmat(xld=xld, holojaco=ovhdcrn['holojaco'])
-        getdgmat = get_getdgmat(vld=vld)
+        getdgmat = get_getdgmat(vld=vld, xld=xld, holohess=ovhdcrn['holohess'])
         getpdxdxg = get_pdxdxg(pld=pld, r=r)
+        nwtncorr = get_nwtncorr(xld=xld, pld=pld, nx=nx,
+                                holojaco=ovhdcrn['holojaco'])
 
         xrhs = get_xresidual(xld=xld, pld=pld, sysrhs=ovhdcrn['rhs'],
                              holojaco=ovhdcrn['holojaco'], mddxld=mddxld,
                              minusres=True, nx=nx, NP=NP)
-        grhs = get_grhs(xld=xld, holoc=ovhdcrn['holoc'])
-        dgrhs = get_dgrhs(xld=xld, vld=vld, holojaco=ovhdcrn['holojaco'])
+        grhs = get_grhs(xld=xld, holoc=ovhdcrn['holoc'],
+                        holojaco=ovhdcrn['holojaco'])
+        dgrhs = get_dgrhs(xld=xld, vld=vld, holojaco=ovhdcrn['holojaco'],
+                          holohess=ovhdcrn['holohess'])
 
         nr = 1
         xvqplmu = foo.\
@@ -264,7 +271,7 @@ if __name__ == '__main__':
                                 getdgmat=getdgmat,
                                 getamat=getpdxdxg, nr=nr,
                                 grhs=grhs, dgrhs=dgrhs,
-                                dxini=0*inix, dvini=0*iniv, xrhs=xrhs)
+                                dxini=inix, dvini=iniv, xrhs=nwtncorr)
 
         ntp = len(tmesh)
         dx = xvqplmu[:nx*ntp].reshape((ntp, nx))
@@ -273,9 +280,9 @@ if __name__ == '__main__':
         dp = xvqplmu[-nr*(ntp-1):]
         xlist, vlist, plist = [xld[tmesh[0]]], [vld[tmesh[0]]], [pld[tmesh[0]]]
         for k, curt in enumerate(tmesh[1:]):
-            xlist.append(xld[curt]+dx[k+1, :])
-            vlist.append(vld[curt]+dv[k+1, :])
-            plist.append(pld[curt]+dp[k])
+            xlist.append(dx[k+1, :])
+            vlist.append(dv[k+1, :])
+            plist.append(dp[k])
 
         # getpdxdxg = get_pdxdxg(pld=pld, r=r)
         # getgmat = get_getgmat(xld=xld, holojaco=ovhdcrn['holojaco'])
