@@ -135,7 +135,7 @@ def get_getdgmat(xld=None, vld=None, holohess=None):
     def getdgmat(t):
         curv = vld[t].reshape((nx, 1))
         return np.dot(dxdxtg, curv).T
-    return getgmat
+    return getdgmat
 
 
 def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
@@ -187,7 +187,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 1., 11
+    tE, Nts = 3., 301
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
