@@ -218,6 +218,83 @@ def get_forwarddiff(tmesh):
     return (bigeye[1:, :] - bigeye[:-1, :])/hvec
 
 
+def ltvggl_bwprobmats(tmesh=None, mmat=None, getgmat=None,
+                      getdgmat=None, getamat=None, vold=None,
+                      l1term=None, l2term=None, dualrhs=None,
+                      grhs=None, dgrhs=None, nr=None):
+    """ get the coefficient matrix for the backward/adjoint problem
+
+    -M.T*l1' = A.T*l2 - G.Tm1 - dG.Tm2
+    -M.T*l2' = M.T*l1 - G.Tm2
+    0 = Gl1
+    0 = dGl1 + Gl2
+
+    dims        ntp-1*nx nx   ntp-1*nx   nx     ntp-1*nr ntp-1*nr
+               ------------------------------------------------------
+             |
+    nx       |  0        tl1m   0      0       0       0
+    nx       |  0        0      0      tl2m    0       0
+    ntp-1*nx |   -diff_M        -A.T   0       G.T     dG.T
+    ntp-1*nx |  -M.T     0       -diff_M       0       G.T
+    ntp-1*nr |  G        0      0      0       0       0
+    ntp-1*nr |  dG       0      G      0       0       0
+
+    *
+
+    coeffvec
+    [l1     tl1     l2  tl2     m1  m2].T
+
+    =
+
+    [QC     0   0   0   0   0].T*ystar
+    """
+
+    nx = l1term.size
+    ntp = len(tmesh)
+    bwintmesh = tmesh[:-1]
+    ntpi = len(bwintmesh)
+
+    diffmat = get_forwarddiff(tmesh)
+    spdfm = sps.csc_matrix(-diffmat)
+    diffm = sps.kron(spdfm, mmat.T)
+    tdmmat = sps.kron(sps.eye(ntpi), mmat.T)
+
+    def _zspm(nl, nc):
+        return sps.csc_matrix((nl, nc))
+
+    adiag, gdiag, dgdiag = [], [], []
+    rhsl = []
+
+    for curt in bwintmesh:
+        adiag.append(sps.csc_matrix(getamat(curt)).T)
+        gdiag.append(getgmat(curt))
+        dgdiag.append(getdgmat(curt))
+        rhsl.append(dualrhs(curt))
+
+    tdamatt = sps.block_diag(adiag)
+    tdgmat = sps.block_diag(gdiag)
+    dtdgmat = sps.block_diag(dgdiag)
+    lrhs = np.hstack(rhsl).reshape((ntpi*nx, 1))
+
+    tl1mat = sps.hstack([_zspm(nx, ntpi*nx), sps.eye(nx),
+                         _zspm(nx, ntp*nx+2*ntpi*nr)])
+    tl2mat = sps.hstack([_zspm(nx, (2*ntp-1)*nx), sps.eye(nx),
+                         _zspm(nx, 2*ntpi*nr)])
+    coefmatl1 = sps.hstack([-diffm, -tdamatt, _zspm(ntpi*nx, nx),
+                            tdgmat.T, dtdgmat.T])
+    coefmatl2 = sps.hstack([-tdmmat, _zspm(ntpi*nx, nx), -diffm,
+                            _zspm(ntpi*nx, ntpi*nr), tdgmat.T])
+    coefmatg = sps.hstack([tdgmat, _zspm(ntpi*nr, nx),
+                           _zspm(ntpi*nr, nx+ntpi*(nx+2*nr))])
+    coefmatdg = sps.hstack([dtdgmat, _zspm(ntpi*nr, nx), _zspm(ntpi*nr, nx),
+                            tdgmat, _zspm(ntpi*nr, ntpi*2*nr)])
+
+    coefmat = sps.vstack([tl2mat, tl1mat, coefmatl1, coefmatl2,
+                          coefmatg, coefmatdg]).tocsc()
+    rhs = np.vstack([l1term, l2term, lrhs, np.zeros((ntpi*(nx+2*nr), 1))])
+    return coefmat, rhs
+
+
 def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
                         getgmat=None, getdgmat=None, getamat=None, vold=None,
                         dxini=None, dvini=None,
@@ -228,6 +305,12 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
        0 = Gx
        0 = DGx + Gv
     with A, G, rhs time-varying
+
+    and its adjoint
+
+    -Mm' = A.Tl
+    -Ml' = Mm
+
     '''
 
     nx = dxini.size
@@ -238,6 +321,7 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
 
     diffmat = get_forwarddiff(tmesh)
     spdfm = sps.csc_matrix(diffmat)
+    raise Warning('TODO: debug')
     diffm = sps.kron(spdfm, mmat)
     tdmmat = sps.kron(sps.eye(ntpi), mmat)
 

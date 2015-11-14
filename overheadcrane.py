@@ -187,7 +187,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 3., 301
+    tE, Nts = 1., 11
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -234,7 +234,6 @@ if __name__ == '__main__':
     xlist, ulist, plist, vlist = \
         int_impeul_ggl(inix=inix, iniv=iniv,
                        # inpfun=zeroinp,
-                       # inpfun=testinp,
                        inpfun=keepitconst,
                        # inpfun=exatinp,
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
