@@ -141,9 +141,9 @@ def get_getdgmat(xld=None, vld=None, holohess=None):
                          [0, 0, 0, 1]])
 
     def getdgmat(t):
-        curv = vld[t].reshape((nx, 1))
-        return np.dot(dxdxtg, curv).T
-    return getgmat
+        curx = xld[t].reshape((nx, 1))
+        return np.dot(dxdxtg, curx).T
+    return getdgmat
 
 
 def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
@@ -196,12 +196,12 @@ def get_grhs(xld=None, holoc=None, holojaco=None):
 
 def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
     def dgrhs(t):
-        return -(-np.dot(np.dot(vld[t].T, holohess(xld[t])), xld[t]))
+        return -(-np.dot(np.dot(xld[t].T, holohess(xld[t])), vld[t]))
     return dgrhs
 
 
 if __name__ == '__main__':
-    tE, Nts = 3., 301
+    tE, Nts = 3., 1201
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -255,7 +255,7 @@ if __name__ == '__main__':
     # vldz = dict(zip(tmesh, vlist))
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
 
-    linsteps = 5
+    linsteps = 8
     for npc in range(linsteps):
         xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
         vld = dict(zip(tmesh, vlist))
