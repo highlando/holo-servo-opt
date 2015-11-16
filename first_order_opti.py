@@ -432,7 +432,15 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
         return np.dot(cmat.T, np.dot(qmat, ystar(t)))
     tE = tmesh[-1]
     l2term = 0*xini
-    l1term = np.dot(cmat.T, np.dot(smat, ystar(tE)))
+    # # # projection for consistency
+    # curG = getgmat(tmesh[-1])
+    # minvGt = np.linalg.solve(mmat.T, curG.T)
+    # csc = np.dot(curG, minvGt)
+    # prjcmatt = cmat.T - \
+    #     np.dot(curG.T, np.linalg.solve(csc, np.dot(minvGt.T, cmat.T)))
+    # # np.dot(minvGt, np.linalg.solve(csc, np.dot(curG, cmat.T)))
+    prjcmatt = cmat.T
+    l1term = np.dot(prjcmatt, np.dot(smat, ystar(tE)))
     # l1term = np.array([[0., 0.05, 0., 0.005]]).T
     # # debugging
 
@@ -450,7 +458,7 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
                             _zspm(ntpi*nx, 2*ntpi*nr)])
     bigbrmbt = sps.vstack([_zspm((2+ntpi)*nx, 2*(ntp*nx + ntpi*nr)),
                            bigbrmbtx, _zspm(2*ntpi*nr, 2*(ntp*nx+ntpi*nr))])
-    ctqc = np.dot(cmat.T, np.dot(qmat, cmat))
+    ctqc = np.dot(prjcmatt, np.dot(qmat, cmat))
     tdctqc = sps.kron(sps.eye(ntpi), ctqc)
     bigctqtl1 = sps.hstack([tdctqc, _zspm(ntpi*nx, nx+ntp*nx+2*ntpi*nr)])
     tl1ctscm = sps.hstack([_zspm(nx, ntpi*nx), np.dot(cmat.T, smat.dot(cmat)),
@@ -471,8 +479,8 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     # print np.linalg.cond(bigat.todense())
     # plt.figure(111)
     # plt.spy(bigcfm)
-    plt.figure(112)
-    plt.spy(bigat)
+    # plt.figure(112)
+    # plt.spy(bigat)
     # bigatunc = sps.hstack([bigat[2*nx:2*ntp*nx, :][:, :ntpi*nx],
     #                        bigat[2*nx:2*ntp*nx, :][:, ntpi*nx:2*ntpi*nx]])
     # plt.figure(2)
@@ -484,7 +492,5 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     # scmp = gntv.T*(batunci*gntv)
     # print np.linalg.cond(scmp)
     plt.show(block=False)
-    # raise Warning('TODO: debug')
-    raise Warning('TODO: debug')
 
     return xvqpllmm

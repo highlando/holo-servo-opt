@@ -202,7 +202,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 1., 3
+    tE, Nts = 3., 301
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -213,7 +213,7 @@ if __name__ == '__main__':
     gm0 = np.array([[0., 4.]]).T
     # gmf = np.array([[1., 5.]]).T
     # gmf = np.array([[0., 4.1]]).T
-    gmf = np.array([[0., 5.]]).T
+    gmf = np.array([[1., 5.]]).T
     # gmf = np.array([[1., 5.]]).T
 
     # scalar morphing function
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     r, gravity = modpardict['r'], modpardict['gravity']
     # def of the optimization problem
     qmat = np.eye(ny)
-    beta = 1e-4
+    beta = 1e-9
     rmatinv = 1./beta*np.eye(nu)
     gamma = 1e-3
     smat = gamma*np.eye(ny)
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     # vldz = dict(zip(tmesh, vlist))
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
 
-    linsteps = 1
+    linsteps = 9
     for npc in range(linsteps):
         xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
         vld = dict(zip(tmesh, vlist))
@@ -296,10 +296,16 @@ if __name__ == '__main__':
                                  xrhs=xrhs, grhs=grhs, dgrhs=dgrhs, nr=nr)
 
         ntp = len(tmesh)
+        ntpi = ntp-1
         dx = xvqpllmm[:nx*ntp].reshape((ntp, nx))
         dv = xvqpllmm[nx*ntp:2*nx*ntp].reshape((ntp, nx))
-        dq = xvqpllmm[-2*nr*(ntp-1):-nr*(ntp-1)]
-        dp = xvqpllmm[-nr*(ntp-1):]
+        dq = xvqpllmm[2*nx*ntp:2*nx*ntp+ntpi*nr]
+        dp = xvqpllmm[2*nx*ntp+ntpi*nr:2*nx*ntp+2*ntpi*nr]
+        nxvqp = 2*nx*ntp+2*ntpi*nr
+        dl1 = xvqpllmm[nxvqp:nxvqp+nx*ntp].reshape((ntp, nx))
+        dl2 = xvqpllmm[nxvqp+nx*ntp:nxvqp+2*nx*ntp].reshape((ntp, nx))
+        dm1 = xvqpllmm[nxvqp+2*nx*ntp:nxvqp+2*nx*ntp+ntpi*nr]
+        dm2 = xvqpllmm[nxvqp+2*nx*ntp+ntpi*nr:nxvqp+2*nx*ntp+2*ntpi*nr]
         xlist, vlist, plist = [xld[tmesh[0]]], [vld[tmesh[0]]], [pld[tmesh[0]]]
         for k, curt in enumerate(tmesh[1:]):
             xlist.append(dx[k+1, :])
