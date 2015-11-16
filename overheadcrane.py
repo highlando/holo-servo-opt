@@ -281,12 +281,12 @@ if __name__ == '__main__':
 
         nr = 1
         xvqplmu = foo.\
-            ltv_holo_tpbvfindif(tmesh=tmesh, mmat=mmat, bmat=bmat,
+            ltvggl_fwdprobnmats(tmesh=tmesh, mmat=mmat, bmat=bmat,
                                 inpufun=exatinp, getgmat=getgmat,
                                 getdgmat=getdgmat,
                                 getamat=getpdxdxg, nr=nr,
                                 grhs=grhs, dgrhs=dgrhs,
-                                dxini=inix, dvini=iniv, xrhs=fwdrhs)
+                                xini=inix, vini=iniv, xrhs=fwdrhs)
 
         ntp = len(tmesh)
         dx = xvqplmu[:nx*ntp].reshape((ntp, nx))
