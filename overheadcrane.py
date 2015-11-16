@@ -147,13 +147,13 @@ def get_getdgmat(xld=None, vld=None, holohess=None):
     return getdgmat
 
 
-def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
-    def getdualrhs(t):
-        curx = xld[t].reshape((nx, 1))
-        curey = trgttrj(t)
-        drhs = -np.dot(cmat.T, np.dot(qmat, np.dot(cmat, curx)-curey))
-        return drhs
-    return getdualrhs
+# def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
+#     def getdualrhs(t):
+#         curx = xld[t].reshape((nx, 1))
+#         curey = trgttrj(t)
+#         drhs = -np.dot(cmat.T, np.dot(qmat, np.dot(cmat, curx)-curey))
+#         return drhs
+#     return getdualrhs
 
 
 def get_xresidual(xld=None, pld=None, mddxld=None, nx=None, NP=None,
@@ -213,8 +213,8 @@ if __name__ == '__main__':
     gm0 = np.array([[0., 4.]]).T
     # gmf = np.array([[1., 5.]]).T
     # gmf = np.array([[0., 4.1]]).T
-    # gmf = np.array([[0., 5.]]).T
     gmf = np.array([[1., 5.]]).T
+    # gmf = np.array([[1., 5.]]).T
 
     # scalar morphing function
     scalarg = pbd.get_trajec('pwp', tE=tE, g0=0., gf=1.,
@@ -225,7 +225,7 @@ if __name__ == '__main__':
     r, gravity = modpardict['r'], modpardict['gravity']
     # def of the optimization problem
     qmat = np.eye(ny)
-    beta = 1e-4
+    beta = 1e-9
     rmatinv = 1./beta*np.eye(nu)
     gamma = 1e-3
     smat = gamma*np.eye(ny)
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     # vldz = dict(zip(tmesh, vlist))
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
 
-    linsteps = 3
+    linsteps = 9
     for npc in range(linsteps):
         xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
         vld = dict(zip(tmesh, vlist))
@@ -280,19 +280,32 @@ if __name__ == '__main__':
             return nwtncorr(t)+ovhdcrn['rhs']
 
         nr = 1
-        xvqplmu = foo.\
-            ltvggl_fwdprobnmats(tmesh=tmesh, mmat=mmat, bmat=bmat,
-                                inpufun=exatinp, getgmat=getgmat,
-                                getdgmat=getdgmat,
-                                getamat=getpdxdxg, nr=nr,
-                                grhs=grhs, dgrhs=dgrhs,
-                                xini=inix, vini=iniv, xrhs=fwdrhs)
+        # xvqplmu = foo.\
+        #     ltv_holo_tpbvfindif(tmesh=tmesh, mmat=mmat, bmat=bmat,
+        #                         inpufun=exatinp, getgmat=getgmat,
+        #                         getdgmat=getdgmat,
+        #                         getamat=getpdxdxg, nr=nr,
+        #                         grhs=grhs, dgrhs=dgrhs,
+        #                         dxini=inix, dvini=iniv, xrhs=fwdrhs)
+        xvqpllmm = foo.\
+            linoptsys_ltvgglholo(tmesh=tmesh, mmat=mmat, bmat=bmat,
+                                 inpufun=None, getgmat=getgmat,
+                                 getdgmat=getdgmat, getamat=getpdxdxg,
+                                 xini=inix, vini=iniv, qmat=qmat, smat=smat,
+                                 rmatinv=rmatinv, cmat=cmat, ystar=ystar,
+                                 xrhs=xrhs, grhs=grhs, dgrhs=dgrhs, nr=nr)
 
         ntp = len(tmesh)
-        dx = xvqplmu[:nx*ntp].reshape((ntp, nx))
-        dv = xvqplmu[nx*ntp:2*nx*ntp].reshape((ntp, nx))
-        dq = xvqplmu[-2*nr*(ntp-1):-nr*(ntp-1)]
-        dp = xvqplmu[-nr*(ntp-1):]
+        ntpi = ntp-1
+        dx = xvqpllmm[:nx*ntp].reshape((ntp, nx))
+        dv = xvqpllmm[nx*ntp:2*nx*ntp].reshape((ntp, nx))
+        dq = xvqpllmm[2*nx*ntp:2*nx*ntp+ntpi*nr]
+        dp = xvqpllmm[2*nx*ntp+ntpi*nr:2*nx*ntp+2*ntpi*nr]
+        nxvqp = 2*nx*ntp+2*ntpi*nr
+        dl1 = xvqpllmm[nxvqp:nxvqp+nx*ntp].reshape((ntp, nx))
+        dl2 = xvqpllmm[nxvqp+nx*ntp:nxvqp+2*nx*ntp].reshape((ntp, nx))
+        dm1 = xvqpllmm[nxvqp+2*nx*ntp:nxvqp+2*nx*ntp+ntpi*nr]
+        dm2 = xvqpllmm[nxvqp+2*nx*ntp+ntpi*nr:nxvqp+2*nx*ntp+2*ntpi*nr]
         xlist, vlist, plist = [xld[tmesh[0]]], [vld[tmesh[0]]], [pld[tmesh[0]]]
         for k, curt in enumerate(tmesh[1:]):
             xlist.append(dx[k+1, :])
