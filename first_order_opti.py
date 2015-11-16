@@ -12,7 +12,8 @@ __all__ = ['solve_opt_ric',
            'comp_firstorder_mats',
            'get_forwarddiff',
            'ltvggl_bwprobmats',
-           'ltv_holo_tpbvfindif']
+           'ltvggl_fwdprobnmats',
+           'linoptsys_ltvgglholo']
 
 
 def solve_opt_ric(A=None, beta=None, B=None, C=None, gamma=None,
@@ -219,6 +220,10 @@ def get_forwarddiff(tmesh):
     return (bigeye[1:, :] - bigeye[:-1, :])/hvec
 
 
+def _zspm(nl, nc):
+    return sps.csc_matrix((nl, nc))
+
+
 def ltvggl_bwprobmats(tmesh=None, mmat=None, getgmat=None,
                       getdgmat=None, getamat=None, vold=None,
                       l1term=None, l2term=None, dualrhs=None,
@@ -260,9 +265,6 @@ def ltvggl_bwprobmats(tmesh=None, mmat=None, getgmat=None,
     diffm = sps.kron(spdfm, mmat.T)
     tdmmat = sps.kron(sps.eye(ntpi), mmat.T)
 
-    def _zspm(nl, nc):
-        return sps.csc_matrix((nl, nc))
-
     adiag, gdiag, dgdiag = [], [], []
     rhsl = []
 
@@ -296,25 +298,20 @@ def ltvggl_bwprobmats(tmesh=None, mmat=None, getgmat=None,
     return coefmat, rhs
 
 
-def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
+def ltvggl_fwdprobnmats(tmesh=None, mmat=None, bmat=None, inpufun=None,
                         getgmat=None, getdgmat=None, getamat=None, vold=None,
-                        dxini=None, dvini=None,
-                        xrhs=None, grhs=None, dgrhs=None, nr=None):
+                        xini=None, vini=None,
+                        xrhs=None, grhs=None, dgrhs=None, nr=None,
+                        onlyretmats=False):
     ''' model structure
     Mx' = Mv - G.Tq - DG.Tp
     Mv' = Ax - G.Tp + Bu + rhs
-       0 = Gx
-       0 = DGx + Gv
+       g = Gx
+      dg = DGx + Gv
     with A, G, rhs time-varying
-
-    and its adjoint
-
-    -Mm' = A.Tl
-    -Ml' = Mm
-
     '''
 
-    nx = dxini.size
+    nx = xini.size
     ntp = len(tmesh)
     intmesh = tmesh[1:]
     ntpi = len(intmesh)
@@ -325,17 +322,20 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
     diffm = sps.kron(spdfm, mmat)
     tdmmat = sps.kron(sps.eye(ntpi), mmat)
 
-    def _zspm(nl, nc):
-        return sps.csc_matrix((nl, nc))
-
     adiag, gdiag, dgdiag = [], [], []
     xrhsl, grhsl, dgrhsl = [], [], []
+
+    def fwdrhs(t):
+        if bmat is None or inpufun is None:
+            return xrhs(t).reshape((nx, ))
+        else:
+            return (bmat.dot(inpufun(curt)) + xrhs(curt)).reshape((nx, ))
 
     for curt in intmesh:
         adiag.append(sps.csc_matrix(getamat(curt)))
         gdiag.append(getgmat(curt))
         dgdiag.append(getdgmat(curt))
-        xrhsl.append((bmat.dot(inpufun(curt)) + xrhs(curt)).reshape((nx, )))
+        xrhsl.append(fwdrhs(curt))
         grhsl.append(grhs(curt))
         dgrhsl.append(dgrhs(curt))
 
@@ -387,10 +387,75 @@ def ltv_holo_tpbvfindif(tmesh=None, mmat=None, bmat=None, inpufun=None,
 
     coefmat = sps.vstack([inixmat, inivmat, coefmatdx,
                           coefmatdv, coefmatg, coefmatdg]).tocsc()
-    rhsx = np.vstack([dxini, dvini, np.zeros((ntpi*nx, 1)), tdrhs,
+    rhsx = np.vstack([xini, vini, np.zeros((ntpi*nx, 1)), tdrhs,
                       grhs, dgrhs])
 
-    tdsol = spsla.spsolve(coefmat, rhsx)
-    # raise Warning('TODO: debug')
+    if onlyretmats:
+        return coefmat, xrhs
+    else:
+        tdsol = spsla.spsolve(coefmat, rhsx)
+        return tdsol
 
-    return tdsol
+
+def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
+                         getgmat=None, getdgmat=None, getamat=None, vold=None,
+                         xini=None, vini=None, qmat=None, smat=None,
+                         rmatinv=None, cmat=None, ystar=None,
+                         xrhs=None, grhs=None, dgrhs=None, nr=None):
+    '''
+    Solve the coupled system of
+
+    Mx' = Mv - G.Tq - DG.Tp
+    Mv' = Ax - G.Tp + rhs + BR.-1B.T*l2
+       g = Gx
+      dg = DGx + Gv
+
+    x(0) = inix, v(0) = iniv
+
+    and its adjoint
+
+    -M.T*l1' = A.T*l2 - G.Tm1 - dG.Tm2 - C.TQCx + C.TQy
+    -M.T*l2' = M.T*l1 - G.Tm2
+    0 = Gl1
+    0 = dGl1 + Gl2
+
+    l1(tE) = 0, l2(tE) = -C.T*S*(Cx(tE) - y(tE))
+    '''
+    biga, fwdrhs = \
+        ltvggl_fwdprobnmats(tmesh=tmesh, mmat=mmat, getgmat=getgmat,
+                            getdgmat=getdgmat, getamat=getamat, vold=vold,
+                            xini=xini, vini=vini, xrhs=xrhs, grhs=grhs,
+                            dgrhs=dgrhs, nr=nr, onlyretmats=True)
+
+    def dualrhs(t):
+        return np.dot(cmat.T, np.dot(qmat, ystar(tE)))
+    tE = tmesh[-1]
+    l1term = 0*xini
+    l2term = np.dot(cmat.T, np.dot(smat, ystar(tE)))
+    bigat, dualrhs = \
+        ltvggl_bwprobmats(tmesh=tmesh, mmat=mmat, getgmat=getgmat,
+                          getdgmat=getdgmat, getamat=getamat, vold=vold,
+                          l1term=l1term, l2term=l2term, dualrhs=dualrhs,
+                          grhs=grhs, dgrhs=dgrhs, nr=nr)
+    nx = xini.size
+    ntp = len(tmesh)
+    ntpi = ntp-1
+    brmibt = np.dot(bmat, np.dot(rmatinv, bmat.T))
+    tdbrmibt = sps.kron(sps.eye(ntpi), brmibt)
+    bigbrmbtx = sps.hstack([_zspm(ntpi*nx, (ntp+1)*nx), tdbrmibt,
+                            _zspm(ntpi*nx, 2*ntpi*nr)])
+    bigbrmbt = sps.vstack([_zspm((2+ntpi)*nx, 2*(ntp*nx + ntpi*nr)),
+                           bigbrmbtx])
+    ctqc = np.dot(cmat.T, np.dot(qmat, cmat))
+    tdctqc = sps.kron(sps.eye(ntpi), ctqc)
+    tl1ctscm = sps.hstack([_zspm(nx, ntpi*nx), np.dot(cmat.T, smat.dot(cmat)),
+                           _zspm(nx, ntp*nx+2*ntpi*nr)])
+    bigctqc = sps.vstack([tl1ctscm, _zspm(nx, 2*(ntp*nx+ntpi*nr)),
+                          tdctqc, _zspm(ntpi*nx+2*ntp*nr, 2*(ntp*nx+ntpi*nr))])
+    bigcfm = sps.vstack([sps.hstack([biga, -bigbrmbt]),
+                         sps.hstack([bigctqc, bigat])])
+    bigrhs = np.vstack([xrhs, dualrhs])
+
+    xvqpllmm = spsla.spsolve(bigcfm, bigrhs)
+
+    return xvqpllmm

@@ -135,12 +135,13 @@ def get_getgmat(xld=None, holojaco=None):
 
 
 def get_getdgmat(xld=None, vld=None, holohess=None):
-    dxdxtg = 2*np.array([[1, 0, -1, 0],
-                         [0, -r**2, 0, 0],
-                         [-1, 0, 1, 0],
-                         [0, 0, 0, 1]])
+    # dxdxtg = 2*np.array([[1, 0, -1, 0],
+    #                      [0, -r**2, 0, 0],
+    #                      [-1, 0, 1, 0],
+    #                      [0, 0, 0, 1]])
 
     def getdgmat(t):
+        dxdxtg = holohess(xld[t])
         curx = xld[t].reshape((nx, 1))
         return np.dot(dxdxtg, curx).T
     return getdgmat
@@ -255,7 +256,7 @@ if __name__ == '__main__':
     # vldz = dict(zip(tmesh, vlist))
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
 
-    linsteps = 8
+    linsteps = 3
     for npc in range(linsteps):
         xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
         vld = dict(zip(tmesh, vlist))
