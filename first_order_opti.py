@@ -272,7 +272,7 @@ def ltvggl_bwprobmats(tmesh=None, mmat=None, getgmat=None,
         adiag.append(sps.csc_matrix(getamat(curt)).T)
         gdiag.append(getgmat(curt))
         dgdiag.append(getdgmat(curt))
-        rhsl.append(dualrhs(curt))
+        rhsl.append(dualrhs(curt).T)
 
     tdamatt = sps.block_diag(adiag)
     tdgmat = sps.block_diag(gdiag)
@@ -433,7 +433,10 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     tE = tmesh[-1]
     l2term = 0*xini
     l1term = np.dot(cmat.T, np.dot(smat, ystar(tE)))
-    bigat, dualrhs = \
+    # l1term = np.array([[0., 0.05, 0., 0.005]]).T
+    # # debugging
+
+    bigat, dualrhsvec = \
         ltvggl_bwprobmats(tmesh=tmesh, mmat=mmat, getgmat=getgmat,
                           getdgmat=getdgmat, getamat=getamat, vold=vold,
                           l1term=l1term, l2term=l2term, dualrhs=dualrhs,
@@ -456,21 +459,20 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
                           _zspm(ntpi*nx+2*ntpi*nr, 2*(ntp*nx+ntpi*nr))])
     bigcfm = sps.vstack([sps.hstack([biga, -bigbrmbt]),
                          sps.hstack([bigctqc, bigat])])
-    bigrhs = np.vstack([fwdrhs, dualrhs])
+    bigrhs = np.vstack([fwdrhs, dualrhsvec])
 
     xvqpllmm = spsla.spsolve(bigcfm, bigrhs)
-    llmm = spsla.spsolve(bigat, dualrhs)
-    raise Warning('TODO: debug')
+    llmm = spsla.spsolve(bigat, dualrhsvec)
 
-    # # debugging
+    # debugging
     # xvqpllmmd = np.linalg.solve(bigcfm.todense(), bigrhs)
-    # import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
     # print np.linalg.cond(biga.todense())
     # print np.linalg.cond(bigat.todense())
     # plt.figure(111)
     # plt.spy(bigcfm)
-    # plt.figure(112)
-    # plt.spy(bigat)
+    plt.figure(112)
+    plt.spy(bigat)
     # bigatunc = sps.hstack([bigat[2*nx:2*ntp*nx, :][:, :ntpi*nx],
     #                        bigat[2*nx:2*ntp*nx, :][:, ntpi*nx:2*ntpi*nx]])
     # plt.figure(2)
@@ -481,7 +483,8 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     # plt.spy(gntv)
     # scmp = gntv.T*(batunci*gntv)
     # print np.linalg.cond(scmp)
-    # plt.show(block=False)
+    plt.show(block=False)
     # raise Warning('TODO: debug')
+    raise Warning('TODO: debug')
 
     return xvqpllmm

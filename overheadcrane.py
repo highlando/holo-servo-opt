@@ -202,7 +202,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 1., 6
+    tE, Nts = 1., 3
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
