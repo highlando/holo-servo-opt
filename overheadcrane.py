@@ -147,13 +147,13 @@ def get_getdgmat(xld=None, vld=None, holohess=None):
     return getdgmat
 
 
-def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
-    def getdualrhs(t):
-        curx = xld[t].reshape((nx, 1))
-        curey = trgttrj(t)
-        drhs = -np.dot(cmat.T, np.dot(qmat, np.dot(cmat, curx)-curey))
-        return drhs
-    return getdualrhs
+# def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
+#     def getdualrhs(t):
+#         curx = xld[t].reshape((nx, 1))
+#         curey = trgttrj(t)
+#         drhs = -np.dot(cmat.T, np.dot(qmat, np.dot(cmat, curx)-curey))
+#         return drhs
+#     return getdualrhs
 
 
 def get_xresidual(xld=None, pld=None, mddxld=None, nx=None, NP=None,
@@ -202,7 +202,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 3., 301
+    tE, Nts = 1., 6
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -213,8 +213,8 @@ if __name__ == '__main__':
     gm0 = np.array([[0., 4.]]).T
     # gmf = np.array([[1., 5.]]).T
     # gmf = np.array([[0., 4.1]]).T
-    # gmf = np.array([[0., 5.]]).T
-    gmf = np.array([[1., 5.]]).T
+    gmf = np.array([[0., 5.]]).T
+    # gmf = np.array([[1., 5.]]).T
 
     # scalar morphing function
     scalarg = pbd.get_trajec('pwp', tE=tE, g0=0., gf=1.,
@@ -256,7 +256,7 @@ if __name__ == '__main__':
     # vldz = dict(zip(tmesh, vlist))
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
 
-    linsteps = 3
+    linsteps = 1
     for npc in range(linsteps):
         xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
         vld = dict(zip(tmesh, vlist))

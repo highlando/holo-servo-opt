@@ -279,18 +279,19 @@ def ltvggl_bwprobmats(tmesh=None, mmat=None, getgmat=None,
     dtdgmat = sps.block_diag(dgdiag)
     lrhs = np.hstack(rhsl).reshape((ntpi*nx, 1))
 
-    tl1mat = sps.hstack([_zspm(nx, ntpi*nx), sps.eye(nx),
-                         _zspm(nx, ntp*nx+2*ntpi*nr)])
-    tl2mat = sps.hstack([_zspm(nx, (2*ntp-1)*nx), sps.eye(nx),
+    tl1mat = sps.hstack([_zspm(nx, (2*ntp-1)*nx), mmat,
                          _zspm(nx, 2*ntpi*nr)])
+    tl2mat = sps.hstack([_zspm(nx, ntpi*nx), mmat,
+                         _zspm(nx, ntp*nx+2*ntpi*nr)])
     coefmatl1 = sps.hstack([-diffm, -tdamatt, _zspm(ntpi*nx, nx),
                             tdgmat.T, dtdgmat.T])
     coefmatl2 = sps.hstack([-tdmmat, _zspm(ntpi*nx, nx), -diffm,
                             _zspm(ntpi*nx, ntpi*nr), tdgmat.T])
     coefmatg = sps.hstack([tdgmat, _zspm(ntpi*nr, nx),
                            _zspm(ntpi*nr, nx+ntpi*(nx+2*nr))])
-    coefmatdg = sps.hstack([dtdgmat, _zspm(ntpi*nr, nx), _zspm(ntpi*nr, nx),
-                            tdgmat, _zspm(ntpi*nr, ntpi*2*nr)])
+    coefmatdg = sps.hstack([dtdgmat, _zspm(ntpi*nr, nx),
+                            tdgmat, _zspm(ntpi*nr, nx),
+                            _zspm(ntpi*nr, ntpi*2*nr)])
 
     coefmat = sps.vstack([tl2mat, tl1mat, coefmatl1, coefmatl2,
                           coefmatg, coefmatdg]).tocsc()
@@ -391,7 +392,7 @@ def ltvggl_fwdprobnmats(tmesh=None, mmat=None, bmat=None, inpufun=None,
                       grhs, dgrhs])
 
     if onlyretmats:
-        return coefmat, xrhs
+        return coefmat, rhsx
     else:
         tdsol = spsla.spsolve(coefmat, rhsx)
         return tdsol
@@ -428,10 +429,10 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
                             dgrhs=dgrhs, nr=nr, onlyretmats=True)
 
     def dualrhs(t):
-        return np.dot(cmat.T, np.dot(qmat, ystar(tE)))
+        return np.dot(cmat.T, np.dot(qmat, ystar(t)))
     tE = tmesh[-1]
-    l1term = 0*xini
-    l2term = np.dot(cmat.T, np.dot(smat, ystar(tE)))
+    l2term = 0*xini
+    l1term = np.dot(cmat.T, np.dot(smat, ystar(tE)))
     bigat, dualrhs = \
         ltvggl_bwprobmats(tmesh=tmesh, mmat=mmat, getgmat=getgmat,
                           getdgmat=getdgmat, getamat=getamat, vold=vold,
@@ -445,17 +446,42 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     bigbrmbtx = sps.hstack([_zspm(ntpi*nx, (ntp+1)*nx), tdbrmibt,
                             _zspm(ntpi*nx, 2*ntpi*nr)])
     bigbrmbt = sps.vstack([_zspm((2+ntpi)*nx, 2*(ntp*nx + ntpi*nr)),
-                           bigbrmbtx])
+                           bigbrmbtx, _zspm(2*ntpi*nr, 2*(ntp*nx+ntpi*nr))])
     ctqc = np.dot(cmat.T, np.dot(qmat, cmat))
     tdctqc = sps.kron(sps.eye(ntpi), ctqc)
+    bigctqtl1 = sps.hstack([tdctqc, _zspm(ntpi*nx, nx+ntp*nx+2*ntpi*nr)])
     tl1ctscm = sps.hstack([_zspm(nx, ntpi*nx), np.dot(cmat.T, smat.dot(cmat)),
                            _zspm(nx, ntp*nx+2*ntpi*nr)])
-    bigctqc = sps.vstack([tl1ctscm, _zspm(nx, 2*(ntp*nx+ntpi*nr)),
-                          tdctqc, _zspm(ntpi*nx+2*ntp*nr, 2*(ntp*nx+ntpi*nr))])
+    bigctqc = sps.vstack([tl1ctscm, _zspm(nx, 2*(ntp*nx+ntpi*nr)), bigctqtl1,
+                          _zspm(ntpi*nx+2*ntpi*nr, 2*(ntp*nx+ntpi*nr))])
     bigcfm = sps.vstack([sps.hstack([biga, -bigbrmbt]),
                          sps.hstack([bigctqc, bigat])])
-    bigrhs = np.vstack([xrhs, dualrhs])
+    bigrhs = np.vstack([fwdrhs, dualrhs])
 
     xvqpllmm = spsla.spsolve(bigcfm, bigrhs)
+    llmm = spsla.spsolve(bigat, dualrhs)
+    raise Warning('TODO: debug')
+
+    # # debugging
+    # xvqpllmmd = np.linalg.solve(bigcfm.todense(), bigrhs)
+    # import matplotlib.pyplot as plt
+    # print np.linalg.cond(biga.todense())
+    # print np.linalg.cond(bigat.todense())
+    # plt.figure(111)
+    # plt.spy(bigcfm)
+    # plt.figure(112)
+    # plt.spy(bigat)
+    # bigatunc = sps.hstack([bigat[2*nx:2*ntp*nx, :][:, :ntpi*nx],
+    #                        bigat[2*nx:2*ntp*nx, :][:, ntpi*nx:2*ntpi*nx]])
+    # plt.figure(2)
+    # plt.spy(bigatunc)
+    # gntv = bigat[2*nx:2*ntp*nx, :][:, 2*ntp*nx:]
+    # batunci = np.linalg.inv(bigatunc.todense())
+    # plt.figure(3)
+    # plt.spy(gntv)
+    # scmp = gntv.T*(batunci*gntv)
+    # print np.linalg.cond(scmp)
+    # plt.show(block=False)
+    # raise Warning('TODO: debug')
 
     return xvqpllmm
