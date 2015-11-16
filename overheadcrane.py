@@ -280,19 +280,26 @@ if __name__ == '__main__':
             return nwtncorr(t)+ovhdcrn['rhs']
 
         nr = 1
-        xvqplmu = foo.\
-            ltv_holo_tpbvfindif(tmesh=tmesh, mmat=mmat, bmat=bmat,
-                                inpufun=exatinp, getgmat=getgmat,
-                                getdgmat=getdgmat,
-                                getamat=getpdxdxg, nr=nr,
-                                grhs=grhs, dgrhs=dgrhs,
-                                dxini=inix, dvini=iniv, xrhs=fwdrhs)
+        # xvqplmu = foo.\
+        #     ltv_holo_tpbvfindif(tmesh=tmesh, mmat=mmat, bmat=bmat,
+        #                         inpufun=exatinp, getgmat=getgmat,
+        #                         getdgmat=getdgmat,
+        #                         getamat=getpdxdxg, nr=nr,
+        #                         grhs=grhs, dgrhs=dgrhs,
+        #                         dxini=inix, dvini=iniv, xrhs=fwdrhs)
+        xvqpllmm = foo.\
+            linoptsys_ltvgglholo(tmesh=tmesh, mmat=mmat, bmat=bmat,
+                                 inpufun=None, getgmat=getgmat,
+                                 getdgmat=getdgmat, getamat=getpdxdxg,
+                                 xini=inix, vini=iniv, qmat=qmat, smat=smat,
+                                 rmatinv=rmatinv, cmat=cmat, ystar=ystar,
+                                 xrhs=xrhs, grhs=grhs, dgrhs=dgrhs, nr=nr)
 
         ntp = len(tmesh)
-        dx = xvqplmu[:nx*ntp].reshape((ntp, nx))
-        dv = xvqplmu[nx*ntp:2*nx*ntp].reshape((ntp, nx))
-        dq = xvqplmu[-2*nr*(ntp-1):-nr*(ntp-1)]
-        dp = xvqplmu[-nr*(ntp-1):]
+        dx = xvqpllmm[:nx*ntp].reshape((ntp, nx))
+        dv = xvqpllmm[nx*ntp:2*nx*ntp].reshape((ntp, nx))
+        dq = xvqpllmm[-2*nr*(ntp-1):-nr*(ntp-1)]
+        dp = xvqpllmm[-nr*(ntp-1):]
         xlist, vlist, plist = [xld[tmesh[0]]], [vld[tmesh[0]]], [pld[tmesh[0]]]
         for k, curt in enumerate(tmesh[1:]):
             xlist.append(dx[k+1, :])
