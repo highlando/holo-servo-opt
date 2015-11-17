@@ -203,7 +203,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 3., 11
+    tE, Nts = 3., 1201
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -265,9 +265,9 @@ if __name__ == '__main__':
 
     xlist, ulist, plist, vlist = \
         int_impeul_ggl(inix=inix, iniv=iniv,
-                       inpfun=zeroinp,
+                       # inpfun=zeroinp,
                        # inpfun=keepitconst,
-                       # inpfun=exatinp,
+                       inpfun=exatinp,
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
     plist[0] = plist[1]  # TODO: this is a hack for a consistent pini
