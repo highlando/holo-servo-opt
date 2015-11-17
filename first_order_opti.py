@@ -279,9 +279,9 @@ def ltvggl_bwprobmats(tmesh=None, mmat=None, getgmat=None,
     dtdgmat = sps.block_diag(dgdiag)
     lrhs = np.hstack(rhsl).reshape((ntpi*nx, 1))
 
-    tl1mat = sps.hstack([_zspm(nx, (2*ntp-1)*nx), mmat,
+    tl1mat = sps.hstack([_zspm(nx, (2*ntp-1)*nx), sps.eye(nx),
                          _zspm(nx, 2*ntpi*nr)])
-    tl2mat = sps.hstack([_zspm(nx, ntpi*nx), mmat,
+    tl2mat = sps.hstack([_zspm(nx, ntpi*nx), sps.eye(nx),
                          _zspm(nx, ntp*nx+2*ntpi*nr)])
     coefmatl1 = sps.hstack([-diffm, -tdamatt, _zspm(ntpi*nx, nx),
                             tdgmat.T, dtdgmat.T])
@@ -401,7 +401,7 @@ def ltvggl_fwdprobnmats(tmesh=None, mmat=None, bmat=None, inpufun=None,
 def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
                          getgmat=None, getdgmat=None, getamat=None, vold=None,
                          xini=None, vini=None, qmat=None, smat=None,
-                         rmatinv=None, cmat=None, ystar=None,
+                         rmatinv=None, cmat=None, ystar=None, curterx=None,
                          xrhs=None, grhs=None, dgrhs=None, nr=None):
     '''
     Solve the coupled system of
@@ -434,20 +434,35 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     l2term = 0*xini
     # # projection for consistency
     curG = getgmat(tmesh[-1])
+    curdG = getgmat(tmesh[-1])
     minvGt = np.linalg.solve(mmat.T, curG.T)
     csc = np.dot(curG, minvGt)
     prjcmatt = cmat.T - \
         np.dot(curG.T, np.linalg.solve(csc, np.dot(minvGt.T, cmat.T)))
     # np.dot(minvGt, np.linalg.solve(csc, np.dot(curG, cmat.T)))
-    prjcmatt = cmat.T
-    l1term = np.dot(prjcmatt, np.dot(smat, ystar(tE)))
+    terdiff = cmat.dot(curterx.reshape(xini.shape)) - ystar(tE)
+    # prjcmatt = cmat.T
+    pl1term = np.linalg.solve(mmat, np.dot(prjcmatt, np.dot(smat, terdiff)))
+    l1term = np.linalg.solve(mmat, np.dot(cmat.T, np.dot(smat, terdiff)))
+    projplease = False
+    # projplease = True
+    if projplease:
+        cl1term = pl1term
+    else:
+        cl1term = l1term
+    print 'consistency test'
+    print curG.dot(cl1term)
+    print curdG.dot(cl1term)
+    print 'l1 at t=tE\n', cl1term
+
+    # l1term = np.dot(prjcmatt, np.dot(smat, ystar(tE)))
     # l1term = np.array([[0., 0.05, 0., 0.005]]).T
     # # debugging
 
     bigat, dualrhsvec = \
         ltvggl_bwprobmats(tmesh=tmesh, mmat=mmat, getgmat=getgmat,
                           getdgmat=getdgmat, getamat=getamat, vold=vold,
-                          l1term=l1term, l2term=l2term, dualrhs=dualrhs,
+                          l1term=cl1term, l2term=l2term, dualrhs=dualrhs,
                           grhs=grhs, dgrhs=dgrhs, nr=nr)
     nx = xini.size
     ntp = len(tmesh)
@@ -461,7 +476,10 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     ctqc = np.dot(prjcmatt, np.dot(qmat, cmat))
     tdctqc = sps.kron(sps.eye(ntpi), ctqc)
     bigctqtl1 = sps.hstack([tdctqc, _zspm(ntpi*nx, nx+ntp*nx+2*ntpi*nr)])
-    tl1ctscm = sps.hstack([_zspm(nx, ntpi*nx), np.dot(cmat.T, smat.dot(cmat)),
+    tl1ctscm = sps.hstack([_zspm(nx, ntpi*nx),
+                           # whether or not to have
+                           0*np.dot(cmat.T, smat.dot(cmat)),
+                           # the terminal value coupling explicitly
                            _zspm(nx, ntp*nx+2*ntpi*nr)])
     bigctqc = sps.vstack([tl1ctscm, _zspm(nx, 2*(ntp*nx+ntpi*nr)), bigctqtl1,
                           _zspm(ntpi*nx+2*ntpi*nr, 2*(ntp*nx+ntpi*nr))])
@@ -474,12 +492,12 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     # debugging
     # xvqpllmmd = np.linalg.solve(bigcfm.todense(), bigrhs)
     import matplotlib.pyplot as plt
-    # print np.linalg.cond(biga.todense())
-    # print np.linalg.cond(bigat.todense())
+    # # print np.linalg.cond(biga.todense())
+    # # print np.linalg.cond(bigat.todense())
     # plt.figure(111)
     # plt.spy(bigcfm)
-    # plt.figure(112)
-    # plt.spy(bigat)
+    plt.figure(112)
+    plt.spy(bigat)
     # bigatunc = sps.hstack([bigat[2*nx:2*ntp*nx, :][:, :ntpi*nx],
     #                        bigat[2*nx:2*ntp*nx, :][:, ntpi*nx:2*ntpi*nx]])
     # plt.figure(2)

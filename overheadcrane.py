@@ -203,7 +203,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 3., 601
+    tE, Nts = 3., 11
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -230,17 +230,18 @@ if __name__ == '__main__':
     # def of the optimization problem
     qmat = np.eye(ny)
     beta = 1e-9
-    betalist = [1e-3, 1e-9]
+    betalist = [1e-7]  # , 1e-9]
     legl = ['$\\beta = {0}\\quad$ '.format(bz) for bz in betalist]
     rmatinv = 1./beta*np.eye(nu)
-    gamma = 1e-9
+    gamma = 0*1e-3
     smat = gamma*np.eye(ny)
     # the data of the problem
     ovhdcrn = ocu.overheadmodel(counterg=counterg,
                                 **modpardict)
     mmat, cmat, bmat = ovhdcrn['mmat'], ovhdcrn['cmat'], ovhdcrn['bmat']
     minv = np.linalg.inv(mmat)
-    exatinp = ocu.get_exatinp(scalarg=scalarg, gm0=gm0, gmf=gmf, **modpardict)
+    exatinp = ocu.get_exatinp(scalarg=scalarg, gm0=gm0, gmf=gmf,
+                              counterg=True, **modpardict)
 
     def ystar(t):
         return ocu.trgttrj(t, scalarg=scalarg,
@@ -269,10 +270,12 @@ if __name__ == '__main__':
                        # inpfun=exatinp,
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
+    plist[0] = plist[1]  # TODO: this is a hack for a consistent pini
+    # raise Warning('TODO: debug')
 
     for cbeta in betalist:
         rmatinv = 1./cbeta*np.eye(nu)
-        linsteps = 3
+        linsteps = 2
         for npc in range(linsteps):
             xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
             vld = dict(zip(tmesh, vlist))
@@ -301,7 +304,7 @@ if __name__ == '__main__':
                                      inpufun=None, getgmat=getgmat,
                                      getdgmat=getdgmat, getamat=getpdxdxg,
                                      xini=inix, vini=iniv, qmat=qmat,
-                                     smat=smat,
+                                     smat=smat, curterx=xld[tmesh[-1]],
                                      rmatinv=rmatinv, cmat=cmat, ystar=ystar,
                                      xrhs=xrhs, grhs=grhs, dgrhs=dgrhs, nr=nr)
 
@@ -317,7 +320,7 @@ if __name__ == '__main__':
             dm1 = xvqpllmm[nxvqp+2*nx*ntp:nxvqp+2*nx*ntp+ntpi*nr]
             dm2 = xvqpllmm[nxvqp+2*nx*ntp+ntpi*nr:nxvqp+2*nx*ntp+2*ntpi*nr]
             xlist, vlist = [xld[tmesh[0]]], [vld[tmesh[0]]]
-            plist = [pld[tmesh[0]]]
+            plist = [dp[0]]  # [pld[tmesh[0]]]
             for k, curt in enumerate(tmesh[1:]):
                 xlist.append(dx[k+1, :])
                 vlist.append(dv[k+1, :])
