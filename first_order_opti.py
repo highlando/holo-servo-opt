@@ -303,7 +303,7 @@ def ltvggl_fwdprobnmats(tmesh=None, mmat=None, bmat=None, inpufun=None,
                         getgmat=None, getdgmat=None, getamat=None, vold=None,
                         xini=None, vini=None,
                         xrhs=None, grhs=None, dgrhs=None, nr=None,
-                        onlyretmats=False):
+                        onlyretmats=False, **kwargs):
     ''' model structure
     Mx' = Mv - G.Tq - DG.Tp
     Mv' = Ax - G.Tp + Bu + rhs
