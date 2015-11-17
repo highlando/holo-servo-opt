@@ -265,9 +265,9 @@ if __name__ == '__main__':
 
     xlist, ulist, plist, vlist = \
         int_impeul_ggl(inix=inix, iniv=iniv,
-                       # inpfun=zeroinp,
+                       inpfun=zeroinp,
                        # inpfun=keepitconst,
-                       inpfun=exatinp,
+                       # inpfun=exatinp,
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
     plist[0] = plist[1]  # TODO: this is a hack for a consistent pini
@@ -275,7 +275,7 @@ if __name__ == '__main__':
 
     for cbeta in betalist:
         rmatinv = 1./cbeta*np.eye(nu)
-        linsteps = 2
+        linsteps = 1
         for npc in range(linsteps):
             xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
             vld = dict(zip(tmesh, vlist))
@@ -299,23 +299,6 @@ if __name__ == '__main__':
             def fwdrhs(t):
                 return nwtncorr(t)+ovhdcrn['rhs']
 
-            xvqpllmm = foo.\
-                ltvggl_fwdprobnmats(tmesh=tmesh, mmat=mmat, bmat=bmat,
-                                    inpufun=exatinp, getgmat=getgmat,
-                                    getdgmat=getdgmat, getamat=getpdxdxg,
-                                    xini=inix, vini=iniv, qmat=qmat,
-                                    smat=smat, curterx=xld[tmesh[-1]],
-                                    rmatinv=rmatinv, cmat=cmat, ystar=ystar,
-                                    xrhs=fwdrhs, grhs=grhs,
-                                    dgrhs=dgrhs, nr=nr)
-
-            ntp = len(tmesh)
-            ntpi = ntp-1
-            dx = xvqpllmm[:nx*ntp].reshape((ntp, nx))
-            dq = xvqpllmm[2*nx*ntp:2*nx*ntp+ntpi*nr]
-            dp = xvqpllmm[2*nx*ntp+ntpi*nr:2*nx*ntp+2*ntpi*nr]
-
-            raise Warning('TODO: debug')
             xvqpllmm = foo.\
                 linoptsys_ltvgglholo(tmesh=tmesh, mmat=mmat, bmat=bmat,
                                      inpufun=None, getgmat=getgmat,
