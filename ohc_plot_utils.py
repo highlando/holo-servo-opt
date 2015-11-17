@@ -1,5 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np
+try:
+    import seaborn as sns
+    sns.set(style="whitegrid")
+    mpilightgreen = '#BFDFDE'
+    mpigraygreen = '#7DA9A8'
+    # sns.set_palette(sns.dark_palette(mpigraygreen, 4, reverse=True))
+    # sns.set_palette(sns.dark_palette(mpilightgreen, 6, reverse=True))
+    # sns.set_palette('cool', 3)
+    sns.set_palette('ocean_r', 7)
+except ImportError:
+    pass
 
 
 def plt_inp(tmesh=None, exatinp=None):
@@ -43,3 +54,21 @@ def plotxlist(xlist=None, tmesh=None):
         plt.plot(tmesh, posarray[:, 0])
         plt.figure(125)
         plt.plot(tmesh, posarray[:, 1])
+
+
+def plot_ohc_xu(tmesh=None, xdlist=None, zdlist=None,
+                uslist=None, ublist=None, betalist=None,
+                tikzfile=None):
+    plt.figure(989)
+    for xdl in xdlist:
+        plt.plot(tmesh, xdl)
+    plt.figure(990)
+    for xdl in zdlist:
+        plt.plot(tmesh, xdl)
+    plt.figure(991)
+    for xdl in uslist:
+        plt.plot(tmesh, xdl)
+    plt.figure(992)
+    for xdl in ublist:
+        plt.plot(tmesh, xdl)
+    plt.show(block=False)

@@ -8,6 +8,7 @@ import bswptest as bst
 # import seco_order_opti as soo
 import first_order_opti as foo
 # import matplotlib.pyplot as plt
+import matlibplots.conv_plot_utils as cpu
 # import ohc_plot_utils as plu
 
 
@@ -208,6 +209,7 @@ if __name__ == '__main__':
     inix = np.array([[0, 40, 0, 4]]).T
     iniv = np.array([[0., 0., 0., 0.]]).T
     nx, ny, nu = inix.size, 2, 2
+    nr = 1
     NP = 1
     # initial and final point
     gm0 = np.array([[0., 4.]]).T
@@ -226,6 +228,8 @@ if __name__ == '__main__':
     # def of the optimization problem
     qmat = np.eye(ny)
     beta = 1e-9
+    betalist = [1e-3, 1e-6, 1e-9]
+    legl = ['$\\beta = {0}\\quad$ '.format(bz) for bz in betalist]
     rmatinv = 1./beta*np.eye(nu)
     gamma = 1e-3
     smat = gamma*np.eye(ny)
@@ -239,6 +243,15 @@ if __name__ == '__main__':
         return ocu.trgttrj(t, scalarg=scalarg,
                            gm0=gm0, gmf=gmf, retdts_all=False)
     ovhdcrn.update(dict(cmat=None))
+    # the reference solution
+    exdl, ezdl, eusl, eubl = [], [], [], []
+    for t in tmesh:
+        exdl.append(ystar(t)[0])
+        ezdl.append(ystar(t)[1])
+        eusl.append(exatinp(t)[0])
+        eubl.append(exatinp(t)[1])
+    bxdlist, bzdlist, buslist, bublist = [exdl], [ezdl], [eusl], [eubl]
+    legl.insert(0, 'exact$\\quad$')  # Exakte L\\"osung')
 
     def zeroinp(t):
         return np.zeros((2, 1))
@@ -252,62 +265,93 @@ if __name__ == '__main__':
                        inpfun=keepitconst,
                        # inpfun=exatinp,
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
-    # xldz, pldz = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
-    # vldz = dict(zip(tmesh, vlist))
     xold = np.hstack(xlist).reshape((Nts*nx, 1))
 
-    linsteps = 9
-    for npc in range(linsteps):
-        xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
-        vld = dict(zip(tmesh, vlist))
-        mddxld = getmddxld(vld=vld, mmat=mmat, tmesh=tmesh)
+    for cbeta in betalist:
+        rmatinv = 1./cbeta*np.eye(nu)
+        linsteps = 3
+        for npc in range(linsteps):
+            xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
+            vld = dict(zip(tmesh, vlist))
+            mddxld = getmddxld(vld=vld, mmat=mmat, tmesh=tmesh)
 
-        getgmat = get_getgmat(xld=xld, holojaco=ovhdcrn['holojaco'])
-        getdgmat = get_getdgmat(vld=vld, xld=xld, holohess=ovhdcrn['holohess'])
-        getpdxdxg = get_pdxdxg(pld=pld, r=r)
-        nwtncorr = get_nwtncorr(xld=xld, pld=pld, nx=nx,
-                                holojaco=ovhdcrn['holojaco'])
+            getgmat = get_getgmat(xld=xld, holojaco=ovhdcrn['holojaco'])
+            getdgmat = get_getdgmat(vld=vld, xld=xld,
+                                    holohess=ovhdcrn['holohess'])
+            getpdxdxg = get_pdxdxg(pld=pld, r=r)
+            nwtncorr = get_nwtncorr(xld=xld, pld=pld, nx=nx,
+                                    holojaco=ovhdcrn['holojaco'])
 
-        xrhs = get_xresidual(xld=xld, pld=pld, sysrhs=ovhdcrn['rhs'],
-                             holojaco=ovhdcrn['holojaco'], mddxld=mddxld,
-                             minusres=True, nx=nx, NP=NP)
-        grhs = get_grhs(xld=xld, holoc=ovhdcrn['holoc'],
-                        holojaco=ovhdcrn['holojaco'])
-        dgrhs = get_dgrhs(xld=xld, vld=vld, holojaco=ovhdcrn['holojaco'],
-                          holohess=ovhdcrn['holohess'])
+            xrhs = get_xresidual(xld=xld, pld=pld, sysrhs=ovhdcrn['rhs'],
+                                 holojaco=ovhdcrn['holojaco'], mddxld=mddxld,
+                                 minusres=True, nx=nx, NP=NP)
+            grhs = get_grhs(xld=xld, holoc=ovhdcrn['holoc'],
+                            holojaco=ovhdcrn['holojaco'])
+            dgrhs = get_dgrhs(xld=xld, vld=vld, holojaco=ovhdcrn['holojaco'],
+                              holohess=ovhdcrn['holohess'])
 
-        def fwdrhs(t):
-            return nwtncorr(t)+ovhdcrn['rhs']
+            def fwdrhs(t):
+                return nwtncorr(t)+ovhdcrn['rhs']
 
-        nr = 1
-        # xvqplmu = foo.\
-        #     ltv_holo_tpbvfindif(tmesh=tmesh, mmat=mmat, bmat=bmat,
-        #                         inpufun=exatinp, getgmat=getgmat,
-        #                         getdgmat=getdgmat,
-        #                         getamat=getpdxdxg, nr=nr,
-        #                         grhs=grhs, dgrhs=dgrhs,
-        #                         dxini=inix, dvini=iniv, xrhs=fwdrhs)
-        xvqpllmm = foo.\
-            linoptsys_ltvgglholo(tmesh=tmesh, mmat=mmat, bmat=bmat,
-                                 inpufun=None, getgmat=getgmat,
-                                 getdgmat=getdgmat, getamat=getpdxdxg,
-                                 xini=inix, vini=iniv, qmat=qmat, smat=smat,
-                                 rmatinv=rmatinv, cmat=cmat, ystar=ystar,
-                                 xrhs=xrhs, grhs=grhs, dgrhs=dgrhs, nr=nr)
+            xvqpllmm = foo.\
+                linoptsys_ltvgglholo(tmesh=tmesh, mmat=mmat, bmat=bmat,
+                                     inpufun=None, getgmat=getgmat,
+                                     getdgmat=getdgmat, getamat=getpdxdxg,
+                                     xini=inix, vini=iniv, qmat=qmat,
+                                     smat=smat,
+                                     rmatinv=rmatinv, cmat=cmat, ystar=ystar,
+                                     xrhs=xrhs, grhs=grhs, dgrhs=dgrhs, nr=nr)
 
-        ntp = len(tmesh)
-        ntpi = ntp-1
-        dx = xvqpllmm[:nx*ntp].reshape((ntp, nx))
-        dv = xvqpllmm[nx*ntp:2*nx*ntp].reshape((ntp, nx))
-        dq = xvqpllmm[2*nx*ntp:2*nx*ntp+ntpi*nr]
-        dp = xvqpllmm[2*nx*ntp+ntpi*nr:2*nx*ntp+2*ntpi*nr]
-        nxvqp = 2*nx*ntp+2*ntpi*nr
-        dl1 = xvqpllmm[nxvqp:nxvqp+nx*ntp].reshape((ntp, nx))
-        dl2 = xvqpllmm[nxvqp+nx*ntp:nxvqp+2*nx*ntp].reshape((ntp, nx))
-        dm1 = xvqpllmm[nxvqp+2*nx*ntp:nxvqp+2*nx*ntp+ntpi*nr]
-        dm2 = xvqpllmm[nxvqp+2*nx*ntp+ntpi*nr:nxvqp+2*nx*ntp+2*ntpi*nr]
-        xlist, vlist, plist = [xld[tmesh[0]]], [vld[tmesh[0]]], [pld[tmesh[0]]]
-        for k, curt in enumerate(tmesh[1:]):
-            xlist.append(dx[k+1, :])
-            vlist.append(dv[k+1, :])
-            plist.append(dp[k])
+            ntp = len(tmesh)
+            ntpi = ntp-1
+            dx = xvqpllmm[:nx*ntp].reshape((ntp, nx))
+            dv = xvqpllmm[nx*ntp:2*nx*ntp].reshape((ntp, nx))
+            dq = xvqpllmm[2*nx*ntp:2*nx*ntp+ntpi*nr]
+            dp = xvqpllmm[2*nx*ntp+ntpi*nr:2*nx*ntp+2*ntpi*nr]
+            nxvqp = 2*nx*ntp+2*ntpi*nr
+            dl1 = xvqpllmm[nxvqp:nxvqp+nx*ntp].reshape((ntp, nx))
+            dl2 = xvqpllmm[nxvqp+nx*ntp:nxvqp+2*nx*ntp].reshape((ntp, nx))
+            dm1 = xvqpllmm[nxvqp+2*nx*ntp:nxvqp+2*nx*ntp+ntpi*nr]
+            dm2 = xvqpllmm[nxvqp+2*nx*ntp+ntpi*nr:nxvqp+2*nx*ntp+2*ntpi*nr]
+            xlist, vlist = [xld[tmesh[0]]], [vld[tmesh[0]]]
+            plist = [pld[tmesh[0]]]
+            for k, curt in enumerate(tmesh[1:]):
+                xlist.append(dx[k+1, :])
+                vlist.append(dv[k+1, :])
+                plist.append(dp[k])
+
+        bxdl, bzdl, busl, bubl = [], [], [], []
+        rmbt = np.dot(rmatinv, bmat.T)
+        for k, t in enumerate(tmesh):
+            bxdl.append(dx[k, 2])
+            bzdl.append(dx[k, 3])
+            curu = np.dot(rmbt, dl2[k, :].T)
+            busl.append(curu[0])
+            bubl.append(curu[1])
+        bxdlist.append(bxdl)
+        bzdlist.append(bzdl)
+        buslist.append(busl)
+        bublist.append(bubl)
+
+    cpu.para_plot(tmesh, bxdlist, leglist=legl, fignum=1,
+                  xlabel='time $t$', ylabel='trajectory $x_d$',
+                  tikzfile='ohc_xdtrajs.tikz',
+                  title=None)  # 'Trajektorie')
+
+    cpu.para_plot(tmesh, bzdlist, leglist=legl, fignum=2,
+                  xlabel='time $t$', ylabel='trajectory $z_d$',
+                  tikzfile='ohc_zdtrajs.tikz',
+                  title=None)  # 'Trajektorie')
+
+    cpu.para_plot(tmesh, buslist, leglist=legl, fignum=3,
+                  xlabel='time $t$', ylabel='control $u_s$',
+                  tikzfile='ohc_uss.tikz',
+                  title=None)  # 'Trajektorie')
+
+    cpu.para_plot(tmesh, bublist, leglist=legl, fignum=4,
+                  xlabel='time $t$', ylabel='control $u_b$',
+                  tikzfile='ohc_ubs.tikz',
+                  title=None)  # 'Trajektorie')
+    # plu.plot_ohc_xu(tmesh=tmesh, xdlist=bxdlist, zdlist=bzdlist,
+    #                 uslist=buslist, ublist=bublist, betalist=betalist,
+    #                 leglist=legl, tikzfile='tbd')
