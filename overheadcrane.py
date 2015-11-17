@@ -203,7 +203,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 3., 301
+    tE, Nts = 3., 601
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -225,16 +225,19 @@ if __name__ == '__main__':
     modpardict = dict(J=.1, m=100., mt=10., r=.1, gravity=9.81)
     J, m, mt = modpardict['J'], modpardict['m'], modpardict['mt']
     r, gravity = modpardict['r'], modpardict['gravity']
+    # whether to apply a constant momentum to counter the gravity
+    counterg = True
     # def of the optimization problem
     qmat = np.eye(ny)
     beta = 1e-9
-    betalist = [1e-3, 1e-6, 1e-9]
+    betalist = [1e-3, 1e-9]
     legl = ['$\\beta = {0}\\quad$ '.format(bz) for bz in betalist]
     rmatinv = 1./beta*np.eye(nu)
-    gamma = 1e-3
+    gamma = 1e-9
     smat = gamma*np.eye(ny)
     # the data of the problem
-    ovhdcrn = ocu.overheadmodel(**modpardict)
+    ovhdcrn = ocu.overheadmodel(counterg=counterg,
+                                **modpardict)
     mmat, cmat, bmat = ovhdcrn['mmat'], ovhdcrn['cmat'], ovhdcrn['bmat']
     minv = np.linalg.inv(mmat)
     exatinp = ocu.get_exatinp(scalarg=scalarg, gm0=gm0, gmf=gmf, **modpardict)
@@ -261,8 +264,8 @@ if __name__ == '__main__':
 
     xlist, ulist, plist, vlist = \
         int_impeul_ggl(inix=inix, iniv=iniv,
-                       # inpfun=zeroinp,
-                       inpfun=keepitconst,
+                       inpfun=zeroinp,
+                       # inpfun=keepitconst,
                        # inpfun=exatinp,
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
     xold = np.hstack(xlist).reshape((Nts*nx, 1))

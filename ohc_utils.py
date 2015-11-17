@@ -5,7 +5,8 @@ import numpy as np
 # import matplotlib.pyplot as plt
 
 
-def overheadmodel(J=None, m=None, mt=None, r=None, gravity=9.81):
+def overheadmodel(J=None, m=None, mt=None, r=None, gravity=9.81,
+                  counterg=False):
     """ provide the model of the overhead crane
 
     described by the state `x` with
@@ -39,7 +40,10 @@ def overheadmodel(J=None, m=None, mt=None, r=None, gravity=9.81):
     bmat = np.array([[1., 0], [0, 1.], [0, 0], [0, 0]])
     cmat = np.array([[0, 0, 1, 0], [0, 0, 0, 1]])
 
-    rhs = np.array([[0, 0, 0, m*gravity]]).T
+    if counterg:
+        rhs = np.array([[0, -m*gravity*r, 0, m*gravity]]).T
+    else:
+        rhs = np.array([[0, 0, 0, m*gravity]]).T
 
     def holoc(x=None):
         return (x[2] - x[0])**2 + x[3]**2 - (r*x[1])**2
@@ -71,7 +75,7 @@ def trgttrj(t, scalarg=None, gm0=None, gmf=None, retdts_all=True):
         return gm0 + sclrgt[0]*(gmf - gm0)
 
 
-def get_exatinp(scalarg=None, gm0=None, gmf=None,
+def get_exatinp(scalarg=None, gm0=None, gmf=None, counterg=False,
                 m=None, r=None, mt=None, J=None, gravity=None):
     def exatinp(t):
         def _auxvals(curt):
@@ -98,7 +102,10 @@ def get_exatinp(scalarg=None, gm0=None, gmf=None,
         th, lmbd, halp, bt, s, g1 = _auxvals(t)
         # print 't={0}, lmbda={1}'.format(t, lmbd)
         uF = mt*th + 2*(s-g1)*lmbd
-        uM = J*halp - 2*r**2*bt*lmbd
+        if counterg:
+            uM = J*halp - 2*r**2*bt*lmbd + m*gravity*r
+        else:
+            uM = J*halp - 2*r**2*bt*lmbd
 
         return np.array([uF, uM])
     return exatinp

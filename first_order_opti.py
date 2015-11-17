@@ -432,13 +432,13 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
         return np.dot(cmat.T, np.dot(qmat, ystar(t)))
     tE = tmesh[-1]
     l2term = 0*xini
-    # # # projection for consistency
-    # curG = getgmat(tmesh[-1])
-    # minvGt = np.linalg.solve(mmat.T, curG.T)
-    # csc = np.dot(curG, minvGt)
-    # prjcmatt = cmat.T - \
-    #     np.dot(curG.T, np.linalg.solve(csc, np.dot(minvGt.T, cmat.T)))
-    # # np.dot(minvGt, np.linalg.solve(csc, np.dot(curG, cmat.T)))
+    # # projection for consistency
+    curG = getgmat(tmesh[-1])
+    minvGt = np.linalg.solve(mmat.T, curG.T)
+    csc = np.dot(curG, minvGt)
+    prjcmatt = cmat.T - \
+        np.dot(curG.T, np.linalg.solve(csc, np.dot(minvGt.T, cmat.T)))
+    # np.dot(minvGt, np.linalg.solve(csc, np.dot(curG, cmat.T)))
     prjcmatt = cmat.T
     l1term = np.dot(prjcmatt, np.dot(smat, ystar(tE)))
     # l1term = np.array([[0., 0.05, 0., 0.005]]).T
@@ -470,7 +470,6 @@ def linoptsys_ltvgglholo(tmesh=None, mmat=None, bmat=None, inpufun=None,
     bigrhs = np.vstack([fwdrhs, dualrhsvec])
 
     xvqpllmm = spsla.spsolve(bigcfm, bigrhs)
-    llmm = spsla.spsolve(bigat, dualrhsvec)
 
     # debugging
     # xvqpllmmd = np.linalg.solve(bigcfm.todense(), bigrhs)
