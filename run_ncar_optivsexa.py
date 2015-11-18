@@ -9,11 +9,11 @@ import matlibplots.conv_plot_utils as cpu
 # setup of the tests
 opticheck, fbcheck = False, False
 # make it come true
-opticheck = True
-# fbcheck = True
+# opticheck = True
+fbcheck = True
 
 # parameters of the problem
-ncar = 3
+ncar = 2
 
 # parameters of the optimization problem
 tE = 4.
@@ -113,7 +113,7 @@ if __name__ == '__main__':
         tinipppv[0] = tini[0] + peps
         tinipppv[ncar] = tini[ncar] + veps
         inilist = [tini, tinipv, tinipp, tinipppv]
-        leglist = ['exact $x_{1,0}$, $\dot x_{1,0}~$',
+        leglist = ['exact ~',
                    'perturbed  $\dot x_{1,0}~$',
                    'perturbed  $x_{1,0}~$',
                    'perturbed  $x_{1,0}$, $\dot x_{1,0}$']
@@ -137,7 +137,7 @@ if __name__ == '__main__':
 
         ylims = [0., 3.5]
         cpu.para_plot(tmesh, outlist, leglist=leglist, fignum=4,
-                      xlabel='time $t$', ylabel='trajectory $x_1$',
+                      xlabel='time $t~[s]$', ylabel='trajectory $x_1~[m]$',
                       ylims=ylims,
                       tikzfile='{0}car_inivpert_Riccati.tikz'.format(ncar),
                       title=None, legloc='lower right')  # 'Trajektorie')
@@ -145,7 +145,7 @@ if __name__ == '__main__':
         # # direct solution
         outlist = inivinipcheck(inilist, fbd=None, ftd=forcefunc, bmo=1.)
         cpu.para_plot(tmesh, outlist, leglist=leglist, fignum=3,
-                      xlabel='time $t$', ylabel='trajectory $x_1$',
+                      xlabel='time $t~[s]$', ylabel='trajectory $x_1~[m]$',
                       ylims=ylims,
                       tikzfile='{0}car_inivpert_direct.tikz'.format(ncar),
                       title=None, legloc='lower right')  # 'Trajektorie')
@@ -189,11 +189,11 @@ if __name__ == '__main__':
         print legl
 
         cpu.para_plot(tmesh, xlist, leglist=legl, fignum=3,
-                      xlabel='time $t$', ylabel='trajectory $x_1$',
+                      xlabel='time $t~[s]$', ylabel='trajectory $x_1~[m]$',
                       tikzfile='snapplot_{0}car_trajs.tikz'.format(ncar),
                       title=None)  # 'Trajektorie')
 
         cpu.para_plot(tmesh, ulist, leglist=legl, fignum=4,
-                      xlabel='time $t$', ylabel='input $F$',
+                      xlabel='time $t~[s]$', ylabel='input $F~[N]$',
                       tikzfile='snapplot_{0}car_usex.tikz'.format(ncar),
                       title=None)  # 'Kontrollkraft')

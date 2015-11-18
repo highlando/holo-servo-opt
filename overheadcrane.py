@@ -203,7 +203,7 @@ def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 3., 1201
+    tE, Nts = 6., 601
     tmesh = np.linspace(0, tE, Nts).tolist()
     # defining the target trajectory and the exact solution
     inix = np.array([[0, 40, 0, 4]]).T
@@ -220,7 +220,7 @@ if __name__ == '__main__':
 
     # scalar morphing function
     scalarg = pbd.get_trajec('pwp', tE=tE, g0=0., gf=1.,
-                             trnsarea=tE, polydeg=9, retdts_all=True)
+                             trnsarea=tE, polydeg=13, retdts_all=True)
     # def of the problem
     modpardict = dict(J=.1, m=100., mt=10., r=.1, gravity=9.81)
     J, m, mt = modpardict['J'], modpardict['m'], modpardict['mt']
@@ -230,10 +230,10 @@ if __name__ == '__main__':
     # def of the optimization problem
     qmat = np.eye(ny)
     beta = 1e-9
-    betalist = [1e-7]  # , 1e-9]
+    betalist = [1e-5, 1e-7, 1e-9]
     legl = ['$\\beta = {0}\\quad$ '.format(bz) for bz in betalist]
     rmatinv = 1./beta*np.eye(nu)
-    gamma = 0*1e-3
+    gamma = 1e-7
     smat = gamma*np.eye(ny)
     # the data of the problem
     ovhdcrn = ocu.overheadmodel(counterg=counterg,
@@ -263,17 +263,18 @@ if __name__ == '__main__':
     def keepitconst(t):  # for constant position
         return np.array([[0, -m*gravity*r]]).T
 
-    xlist, ulist, plist, vlist = \
+    zxlist, zulist, zplist, zvlist = \
         int_impeul_ggl(inix=inix, iniv=iniv,
-                       # inpfun=zeroinp,
+                       inpfun=zeroinp,
                        # inpfun=keepitconst,
-                       inpfun=exatinp,
+                       # inpfun=exatinp,
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
-    xold = np.hstack(xlist).reshape((Nts*nx, 1))
-    plist[0] = plist[1]  # TODO: this is a hack for a consistent pini
+    xold = np.hstack(zxlist).reshape((Nts*nx, 1))
+    zplist[0] = zplist[1]  # TODO: this is a hack for a consistent pini
     # raise Warning('TODO: debug')
 
     for cbeta in betalist:
+        xlist, plist, vlist = zxlist, zplist, zvlist
         rmatinv = 1./cbeta*np.eye(nu)
         linsteps = 1
         for npc in range(linsteps):
@@ -320,42 +321,57 @@ if __name__ == '__main__':
             dm1 = xvqpllmm[nxvqp+2*nx*ntp:nxvqp+2*nx*ntp+ntpi*nr]
             dm2 = xvqpllmm[nxvqp+2*nx*ntp+ntpi*nr:nxvqp+2*nx*ntp+2*ntpi*nr]
             xlist, vlist = [xld[tmesh[0]]], [vld[tmesh[0]]]
-            plist = [dp[0]]  # [pld[tmesh[0]]]
+            # TODO p and q
+            plist = [-dq[0]]  # [pld[tmesh[0]]]
             for k, curt in enumerate(tmesh[1:]):
                 xlist.append(dx[k+1, :])
                 vlist.append(dv[k+1, :])
-                plist.append(dp[k])
+                plist.append(-dq[k])
 
         bxdl, bzdl, busl, bubl = [], [], [], []
         rmbt = np.dot(rmatinv, bmat.T)
         for k, t in enumerate(tmesh):
-            bxdl.append(dx[k, 2])
-            bzdl.append(dx[k, 3])
+            # bxdl.append(dx[k, 2])
+            # bzdl.append(dx[k, 3])
             curu = np.dot(rmbt, dl2[k, :].T)
             busl.append(curu[0])
             bubl.append(curu[1])
+        ulds, uldb = dict(zip(tmesh, busl)), dict(zip(tmesh, bubl))
+
+        def optiinp(t):
+            return np.array([[ulds[t], uldb[t]]]).T
+        optxlist, optulist, optplist, optpvlist = \
+            int_impeul_ggl(inix=inix, iniv=iniv,
+                           inpfun=optiinp,
+                           # inpfun=keepitconst,
+                           # inpfun=exatinp,
+                           tmesh=tmesh, retvlist=True, **ovhdcrn)
+        for k, t in enumerate(tmesh):
+            bxdl.append(optxlist[k][2])
+            bzdl.append(optxlist[k][3])
+
         bxdlist.append(bxdl)
         bzdlist.append(bzdl)
         buslist.append(busl)
         bublist.append(bubl)
 
     cpu.para_plot(tmesh, bxdlist, leglist=legl, fignum=1,
-                  xlabel='time $t$', ylabel='trajectory $x_d$',
+                  xlabel='time $t~[s]$', ylabel='trajectory $x_d~[m]$',
                   tikzfile='ohc_xdtrajs.tikz',
                   title=None)  # 'Trajektorie')
 
     cpu.para_plot(tmesh, bzdlist, leglist=legl, fignum=2,
-                  xlabel='time $t$', ylabel='trajectory $z_d$',
+                  xlabel='time $t~[s]$', ylabel='trajectory $z_d~[m]$',
                   tikzfile='ohc_zdtrajs.tikz',
                   title=None)  # 'Trajektorie')
 
     cpu.para_plot(tmesh, buslist, leglist=legl, fignum=3,
-                  xlabel='time $t$', ylabel='control $u_s$',
+                  xlabel='time $t~[s]$', ylabel='input $F~[N]$',
                   tikzfile='ohc_uss.tikz',
                   title=None)  # 'Trajektorie')
 
     cpu.para_plot(tmesh, bublist, leglist=legl, fignum=4,
-                  xlabel='time $t$', ylabel='control $u_b$',
+                  xlabel='time $t~[s]$', ylabel='input $M_n~[Nm]$',
                   tikzfile='ohc_ubs.tikz',
                   title=None)  # 'Trajektorie')
     # plu.plot_ohc_xu(tmesh=tmesh, xdlist=bxdlist, zdlist=bzdlist,
