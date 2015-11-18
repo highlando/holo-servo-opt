@@ -230,7 +230,7 @@ if __name__ == '__main__':
     # def of the optimization problem
     qmat = np.eye(ny)
     beta = 1e-9
-    betalist = [1e-5, 1e-7, 1e-9]
+    betalist = [1e-5, 1e-6, 1e-7]
     legl = ['$\\beta = {0}\\quad$ '.format(bz) for bz in betalist]
     rmatinv = 1./beta*np.eye(nu)
     gamma = 1e-7
