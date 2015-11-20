@@ -1,15 +1,15 @@
 import numpy as np
 
-import probdefs as pbd
-import first_order_opti as fop
-import seco_order_opti as sop
+import holo_servo_opt.probdefs as pbd
+import holo_servo_opt.first_order_opti as fop
+import holo_servo_opt.seco_order_opti as sop
 
 import matlibplots.conv_plot_utils as cpu
 
 # setup of the tests
 opticheck, fbcheck = False, False
 # make it come true
-# opticheck = True
+opticheck = True
 fbcheck = True
 
 # parameters of the problem
@@ -136,7 +136,7 @@ if __name__ == '__main__':
         outlist = inivinipcheck(inilist, fbd=fbdict, ftd=ftdict, bmo=1./bzero)
 
         ylims = [0., 3.5]
-        cpu.para_plot(tmesh, outlist, leglist=leglist, fignum=4,
+        cpu.para_plot(tmesh, outlist, leglist=leglist, fignum=44,
                       xlabel='time $t~[s]$', ylabel='trajectory $x_1~[m]$',
                       ylims=ylims,
                       tikzfile='{0}car_inivpert_Riccati.tikz'.format(ncar),
@@ -144,7 +144,7 @@ if __name__ == '__main__':
 
         # # direct solution
         outlist = inivinipcheck(inilist, fbd=None, ftd=forcefunc, bmo=1.)
-        cpu.para_plot(tmesh, outlist, leglist=leglist, fignum=3,
+        cpu.para_plot(tmesh, outlist, leglist=leglist, fignum=43,
                       xlabel='time $t~[s]$', ylabel='trajectory $x_1~[m]$',
                       ylims=ylims,
                       tikzfile='{0}car_inivpert_direct.tikz'.format(ncar),
