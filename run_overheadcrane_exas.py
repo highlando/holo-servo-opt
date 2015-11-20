@@ -1,15 +1,12 @@
 import numpy as np
 import scipy.optimize as sco
 
-import probdefs as pbd
-import ohc_utils as ocu
-import bswptest as bst
+import holo_servo_opt.probdefs as pbd
+import holo_servo_opt.ohc_utils as ocu
 
-# import seco_order_opti as soo
-import first_order_opti as foo
+import holo_servo_opt.first_order_opti as foo
 # import matplotlib.pyplot as plt
 import matlibplots.conv_plot_utils as cpu
-# import ohc_plot_utils as plu
 
 
 '''
@@ -78,33 +75,6 @@ def int_impeul_ggl(mmat=None, amat=None, rhs=None, holoc=None, holojaco=None,
 
     else:
         return ylist, ulist, plist
-
-
-def bwsweep(tmesh=None, amatfun=None, rhsfun=None, gmatfun=None,
-            mmat=None, terml=None, termld=None, outputmat=None):
-    curG = gmatfun(tmesh[-1])
-    if not np.allclose(curG.dot(terml), 0):
-        print 'need to project the inivals'
-    if not np.allclose(curG.dot(termld), 0):
-        print 'need to project the inivals'
-    curl, curn = terml, -termld
-    ulist = [outputmat.dot(curl)]
-    (nr, nx) = curG.shape
-    for k, curt in enumerate(reversed(tmesh[:-1])):
-        cts = tmesh[-k-1] - curt
-        preA = amatfun(curt)
-        preG = gmatfun(curt)
-
-        upd = bst.scndordbwstep(amat=preA, mmat=mmat, gmat=preG,
-                                lini=terml, dlini=-curn,
-                                rhs=rhsfun(curt), ts=cts)
-
-        curl = upd[:nx, :]
-        curn = upd[nx: 2*nx, :]
-
-        ulist.append(outputmat.dot(curl))
-    ulist.reverse()
-    return ulist
 
 
 def get_pdxdxg(pld=None, amat=None, r=None):

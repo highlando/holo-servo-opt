@@ -1,5 +1,32 @@
 import numpy as np
-import scipy as sp
+# import scipy as sp
+
+
+def bwsweep(tmesh=None, amatfun=None, rhsfun=None, gmatfun=None,
+            mmat=None, terml=None, termld=None, outputmat=None):
+    curG = gmatfun(tmesh[-1])
+    if not np.allclose(curG.dot(terml), 0):
+        print 'need to project the inivals'
+    if not np.allclose(curG.dot(termld), 0):
+        print 'need to project the inivals'
+    curl, curn = terml, -termld
+    ulist = [outputmat.dot(curl)]
+    (nr, nx) = curG.shape
+    for k, curt in enumerate(reversed(tmesh[:-1])):
+        cts = tmesh[-k-1] - curt
+        preA = amatfun(curt)
+        preG = gmatfun(curt)
+
+        upd = scndordbwstep(amat=preA, mmat=mmat, gmat=preG,
+                            lini=terml, dlini=-curn,
+                            rhs=rhsfun(curt), ts=cts)
+
+        curl = upd[:nx, :]
+        curn = upd[nx: 2*nx, :]
+
+        ulist.append(outputmat.dot(curl))
+    ulist.reverse()
+    return ulist
 
 
 def get_magmats(J=None, p=None, r=None, m=None, beta=None, zd=None):

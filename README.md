@@ -1,7 +1,7 @@
 Optimal Control for Servo Control Problems
 ---
 
-To get started, run
+The examples are started via the `run_*` routines like
 ```
 python run_ncar_optivsexa.py
 ```
