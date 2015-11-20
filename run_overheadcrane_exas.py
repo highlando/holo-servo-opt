@@ -16,6 +16,25 @@ Mx'' = Ax - G.T(x)p + Bu + f
 g(x) = 0
 '''
 
+# # definition of the discretization
+tE, Nts = 6., 601
+
+# # defining the target trajectory and the exact solution
+inix = np.array([[0, 40, 0, 4]]).T
+iniv = np.array([[0., 0., 0., 0.]]).T
+
+# # initial and final point of the target trajectory
+gm0 = np.array([[0., 4.]]).T
+gmf = np.array([[1., 5.]]).T
+# gmf = np.array([[0., 5.]]).T
+
+# # number of linearization steps
+linsteps = 1
+
+# # whether to apply the result of linearization/optimizaition
+# # in the nonlinear model
+check_u_nonlmodel = True
+
 
 def int_impeul_ggl(mmat=None, amat=None, rhs=None, holoc=None, holojaco=None,
                    bmat=None, inpfun=None, cmat=None,
@@ -97,34 +116,12 @@ def get_getgmat(xld=None, holojaco=None):
     return getgmat
 
 
-# def get_getdgmat(xld=None, vld=None, holohess=None):
-#     def getdgmat(t):
-#         dxdxtg = holohess(xld[t])
-#         curv = vld[t].reshape((nx, 1))
-#         return np.dot(dxdxtg, curv).T
-#     return getdgmat
-
-
 def get_getdgmat(xld=None, vld=None, holohess=None):
-    # dxdxtg = 2*np.array([[1, 0, -1, 0],
-    #                      [0, -r**2, 0, 0],
-    #                      [-1, 0, 1, 0],
-    #                      [0, 0, 0, 1]])
-
     def getdgmat(t):
         dxdxtg = holohess(xld[t])
         curx = xld[t].reshape((nx, 1))
         return np.dot(dxdxtg, curx).T
     return getdgmat
-
-
-# def get_getdualrhs(cmat=None, qmat=None, trgttrj=None, xld=None):
-#     def getdualrhs(t):
-#         curx = xld[t].reshape((nx, 1))
-#         curey = trgttrj(t)
-#         drhs = -np.dot(cmat.T, np.dot(qmat, np.dot(cmat, curx)-curey))
-#         return drhs
-#     return getdualrhs
 
 
 def get_xresidual(xld=None, pld=None, mddxld=None, nx=None, NP=None,
@@ -173,20 +170,10 @@ def get_dgrhs(xld=None, vld=None, holojaco=None, holohess=None):
 
 
 if __name__ == '__main__':
-    tE, Nts = 6., 601
-    tmesh = np.linspace(0, tE, Nts).tolist()
-    # defining the target trajectory and the exact solution
-    inix = np.array([[0, 40, 0, 4]]).T
-    iniv = np.array([[0., 0., 0., 0.]]).T
     nx, ny, nu = inix.size, 2, 2
     nr = 1
     NP = 1
-    # initial and final point
-    gm0 = np.array([[0., 4.]]).T
-    # gmf = np.array([[1., 5.]]).T
-    # gmf = np.array([[0., 4.1]]).T
-    gmf = np.array([[1., 5.]]).T
-    # gmf = np.array([[1., 5.]]).T
+    tmesh = np.linspace(0, tE, Nts).tolist()
 
     # scalar morphing function
     scalarg = pbd.get_trajec('pwp', tE=tE, g0=0., gf=1.,
@@ -241,12 +228,10 @@ if __name__ == '__main__':
                        tmesh=tmesh, retvlist=True, **ovhdcrn)
     xold = np.hstack(zxlist).reshape((Nts*nx, 1))
     zplist[0] = zplist[1]  # TODO: this is a hack for a consistent pini
-    # raise Warning('TODO: debug')
 
     for cbeta in betalist:
         xlist, plist, vlist = zxlist, zplist, zvlist
         rmatinv = 1./cbeta*np.eye(nu)
-        linsteps = 1
         for npc in range(linsteps):
             xld, pld = dict(zip(tmesh, xlist)), dict(zip(tmesh, plist))
             vld = dict(zip(tmesh, vlist))
@@ -291,34 +276,33 @@ if __name__ == '__main__':
             dm1 = xvqpllmm[nxvqp+2*nx*ntp:nxvqp+2*nx*ntp+ntpi*nr]
             dm2 = xvqpllmm[nxvqp+2*nx*ntp+ntpi*nr:nxvqp+2*nx*ntp+2*ntpi*nr]
             xlist, vlist = [xld[tmesh[0]]], [vld[tmesh[0]]]
-            # TODO p and q
-            plist = [-dq[0]]  # [pld[tmesh[0]]]
+            plist = [-dp[0]]  # [pld[tmesh[0]]]
             for k, curt in enumerate(tmesh[1:]):
                 xlist.append(dx[k+1, :])
                 vlist.append(dv[k+1, :])
-                plist.append(-dq[k])
+                plist.append(-dp[k])
 
         bxdl, bzdl, busl, bubl = [], [], [], []
         rmbt = np.dot(rmatinv, bmat.T)
         for k, t in enumerate(tmesh):
-            # bxdl.append(dx[k, 2])
-            # bzdl.append(dx[k, 3])
+            bxdl.append(dx[k, 2])
+            bzdl.append(dx[k, 3])
             curu = np.dot(rmbt, dl2[k, :].T)
             busl.append(curu[0])
             bubl.append(curu[1])
         ulds, uldb = dict(zip(tmesh, busl)), dict(zip(tmesh, bubl))
 
-        def optiinp(t):
-            return np.array([[ulds[t], uldb[t]]]).T
-        optxlist, optulist, optplist, optpvlist = \
-            int_impeul_ggl(inix=inix, iniv=iniv,
-                           inpfun=optiinp,
-                           # inpfun=keepitconst,
-                           # inpfun=exatinp,
-                           tmesh=tmesh, retvlist=True, **ovhdcrn)
-        for k, t in enumerate(tmesh):
-            bxdl.append(optxlist[k][2])
-            bzdl.append(optxlist[k][3])
+        if check_u_nonlmodel:
+            def optiinp(t):
+                return np.array([[ulds[t], uldb[t]]]).T
+            optxlist, optulist, optplist, optpvlist = \
+                int_impeul_ggl(inix=inix, iniv=iniv,
+                               inpfun=optiinp,
+                               tmesh=tmesh, retvlist=True, **ovhdcrn)
+            bxdl, bzdl = [], []
+            for k, t in enumerate(tmesh):
+                bxdl.append(optxlist[k][2])
+                bzdl.append(optxlist[k][3])
 
         bxdlist.append(bxdl)
         bzdlist.append(bzdl)
@@ -344,6 +328,3 @@ if __name__ == '__main__':
                   xlabel='time $t~[s]$', ylabel='input $M_n~[Nm]$',
                   tikzfile='ohc_ubs.tikz',
                   title=None)  # 'Trajektorie')
-    # plu.plot_ohc_xu(tmesh=tmesh, xdlist=bxdlist, zdlist=bzdlist,
-    #                 uslist=buslist, ublist=bublist, betalist=betalist,
-    #                 leglist=legl, tikzfile='tbd')
