@@ -6,6 +6,8 @@ import holo_servo_opt.seco_order_opti as sop
 
 import matlibplots.conv_plot_utils as cpu
 
+from dolfin_navier_scipy.data_output_utils import Timer
+
 # setup of the tests
 opticheck, fbcheck = False, False
 # make it come true
@@ -170,13 +172,14 @@ if __name__ == '__main__':
 
         ulist, xlist = [], []
         for bzero in bzerl:
-            sol = sop.fd_fullsys(A=A, B=B, C=C, flist=flist, g=trajec,
-                                 tmesh=tmesh.reshape((tmesh.size, 1)),
-                                 Q=np.dot(C.T, C),
-                                 bone=bone, bzero=bzero, gamma=gamma,
-                                 inix=defprbdict['posini'],
-                                 inidx=defprbdict['velini'],
-                                 udiril=udiril)
+            with Timer('solve the optsys'):
+                sol = sop.fd_fullsys(A=A, B=B, C=C, flist=flist, g=trajec,
+                                     tmesh=tmesh.reshape((tmesh.size, 1)),
+                                     Q=np.dot(C.T, C),
+                                     bone=bone, bzero=bzero, gamma=gamma,
+                                     inix=defprbdict['posini'],
+                                     inidx=defprbdict['velini'],
+                                     udiril=udiril)
             nT = tmesh.size
             x1 = sol[ncar*nT: (ncar+1)*nT]
             u = sol[-nT:]
